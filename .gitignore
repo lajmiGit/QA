@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+output/
+# Node / Playwright
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+automation/.features-gen/

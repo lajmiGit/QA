@@ -1,0 +1,30 @@
+# Task: Project Setup
+
+- [x] Install dependencies (CrewAI, LangChain Google GenAI, Dotenv) <!-- id: 0 -->
+    - [x] Create virtual environment
+    - [x] Install packages
+- [x] Create Wiki documentation <!-- id: 1 -->
+- [x] Import Project Context from Gemini <!-- id: 2 -->
+- [x] Create Implementation Plan <!-- id: 3 -->
+- [x] Set up Project Structure (directories) <!-- id: 4 -->
+- [x] Create `.env` template <!-- id: 5 -->
+- [x] Implement Agents (CrewAI) <!-- id: 6 -->
+    - [x] Analyst Agent <!-- id: 7 -->
+    - [x] Designer Agent <!-- id: 8 -->
+    - [x] SDET Agent <!-- id: 9 -->
+    - [x] Supervisor Agent <!-- id: 10 -->
+- [x] Implement `main.py` <!-- id: 11 -->
+- [x] Verify First Cycle <!-- id: 12 -->
+    - [x] **Fix API Key Error** <!-- id: 17 -->
+- [x] Explain Code (Wiki) <!-- id: 13 -->
+    - [x] Explain `agents.py` <!-- id: 14 -->
+    - [x] Explain `tasks.py` <!-- id: 15 -->
+    - [x] Explain `main.py` <!-- id: 16 -->
+    - [x] Explain Integrations (Jira/Xray) <!-- id: 25 -->
+- [x] **Evolution: Jira & Xray Integration** <!-- id: 18 -->
+    - [x] Research CrewAI Jira Tool / Atlassian API <!-- id: 19 -->
+    - [x] Update `.env` with Jira Credentials <!-- id: 20 -->
+    - [x] Implement Jira Connector Tool <!-- id: 21 -->
+    - [x] Modify `analyst_agent` to fetch from Jira <!-- id: 22 -->
+    - [x] Implement Xray Connector Tool <!-- id: 23 -->
+    - [x] Modify `review_task` to push to Xray <!-- id: 24 -->
