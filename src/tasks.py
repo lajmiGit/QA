@@ -13,22 +13,28 @@ class LaboQaTasks:
         )
 
     def analysis_task(self, agent, user_story_context=None, direct_input=None):
-        description = "Analyser la User Story pour en extraire toutes les informations nécessaires aux tests.\n\n"
+        description = dedent("""
+            ÉTAPE 0 : CONSULTATION DU CERVEAU (OBLIGATOIRE)
+            - Interrogez le 'Cerveau du Projet' via `query_knowledge` en posant une question précise en langage naturel sur les règles déjà validées ou l'historique de cette fonctionnalité. Ne redéfinissez pas ce qui est déjà acté.
+            
+            ÉTAPE CRITIQUE : DISCOVERY VISUELLE (OBLIGATOIRE)
+            1. VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil 'list_files' sur le dossier 'docs/resources/' (relatif à votre environnement de travail) pour identifier les sous-dossiers (comme SCRUM-189).
+            2. Explorez le sous-dossier correspondant au ticket actuel.
+            3. POUR CHAQUE IMAGE trouvée, vous DEVEZ appeler 'analyze_resource_image' pour m'expliquer ce qu'elle contient.
+            
+            PHASE 2 : ANALYSE FONCTIONNELLE
+            Une fois (et seulement une fois) que vous avez 'regardé' toutes les images disponibles et consulté le cerveau sémantique, extrayez toutes les NOUVELLES règles ou ajustements de la User Story.
+        """)
         if direct_input:
-            description += f"Donnée d'entrée directe: {direct_input}\n"
+            description += f"\nDonnée d'entrée directe: {direct_input}\n"
         
         description += dedent("""
-            INSTRUCTIONS:
-            1. Analyser le contenu fourni (soit via le contexte Jira, soit via l'entrée directe).
-            2. Identifiez les règles de gestion détaillées.
-            3. Listez les critères d'acceptation.
-            4. Analysez les flux API mentionnés ou nécessaires.
+            INSTRUCTIONS :
+            1. Listez TOUTES les règles identifiées.
+            2. Catégorisez-les : [EXPLICIT], [SUGGESTION/EDGE_CASE], [MISSING_DATA].
+            3. Pour chaque [MISSING_DATA], proposez une valeur par défaut ou une question précise.
             
-            Détails attendus:
-            1. Règles de gestion explicites et implicites.
-            2. Critères d'acceptation.
-            3. Flux de données et appels API potentiels.
-            4. Données de test requises.
+            IMPORTANT : Produisez une liste numérotée claire. Ce document sera la base de l'interview utilisateur.
         """)
         
         context = [user_story_context] if user_story_context else []
@@ -37,76 +43,131 @@ class LaboQaTasks:
             description=description,
             agent=agent,
             context=context,
-            expected_output="Un document d'analyse détaillé structuré en sections (Règles, Critères, API, Données)."
+            expected_output="Un inventaire technique complet des règles (non validé)."
         )
 
-    def test_design_task(self, agent, analysis_context, issue_key=None):
+    def interview_analysis_task(self, agent, analysis_context):
         return Task(
-            description=dedent(f"""
-                À partir de l'analyse fournie, générer les scénarios de test au format Gherkin (.feature).
+            description=dedent("""
+                Mener une interview point par point pour valider l'analyse technique.
                 
-                CONSIGNES:
-                1. Créer un fichier Gherkin complet avec Feature, Background (si pertinent) et Scenarios.
-                2. Couvrir les cas nominaux (Happy Path).
-                3. Couvrir les cas d'erreurs et les cas limites (Edge Cases).
-                4. Utiliser l'anglais pour le Gherkin (plus standard pour l'automatisation).
-                
-                Format de sortie attendu: Contenu d'un fichier .feature uniquement.
+                PROTOCOLE DE CHATBOT PERSISTANT (STRICT) :
+                1. OBLIGATION : Appelez `query_knowledge` pour récupérer 'validated_rules'.
+                2. POUR CHAQUE POINT de l'analyse :
+                   - VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil `ask_human` pour chaque point.
+                   - IL EST INTERDIT de poser la question dans votre réponse texte sans appeler l'outil.
+                3. VÉRIFICATION FINALE GLOBALE :
+                   - Une fois tous les points discutés, présentez une RÉCAPITULATION COMPLÈTE numérotée de tous les points validés.
+                   - Demandez EXPLICITEMENT l'autorisation finale via `ask_human` : "Confirmez-vous l'ensemble de ces points pour passage à la conception ? (Tapez 'GO' pour valider ou listez les points à revoir)".
+                   - TANT QUE vous n'avez pas un "GO" ou une validation globale claire, vous devez RESTER dans cette tâche.
+                4. Une fois le "GO" reçu, enregistrez les nouveautés via `update_knowledge`.
+                5. VOTRE RÉPONSE FINALE ne doit être que le résumé de l'accord final obtenu.
             """),
             agent=agent,
             context=[analysis_context],
-            expected_output="Le contenu complet d'un fichier .feature."
+            expected_output="Analyse finale consolidée et mémorisée point par point."
         )
 
-    def code_generation_task(self, agent, design_context, xray_context, issue_key=None):
+    def test_design_task(self, agent, interview_context):
+        return Task(
+            description=dedent(f"""
+                Concevoir les scénarios Gherkin modernes avec intégration formelle des JDD.
+                
+                CONSIGNES STRICTES :
+                1. INTERDICTION d'utiliser des commentaires (#) pour les JDD.
+                2. Utilisez obligatoirement des 'Scenario Outline' avec une table 'Examples' pour chaque cas de test.
+                3. Proposez des colonnes claires dans les Examples (ex: | username | password | error_message |).
+                4. Rédigez en anglais.
+                
+                Produisez un brouillon Gherkin complet utilisant cette structure.
+            """),
+            agent=agent,
+            context=[interview_context],
+            expected_output="Brouillon Gherkin avec Scenario Outlines et tables Examples."
+        )
+
+    def interview_design_task(self, agent, design_context):
+        return Task(
+            description=dedent("""
+                Mener l'interview de validation du Design et des JDD.
+                
+                PROTOCOLE APPRENANT (STRICT) :
+                1. OBLIGATION : Consultez `query_knowledge` pour les 'preferred_jdd'.
+                2. POUR CHAQUE SCÉNARIO :
+                   - Présentez le SCÉNARIO (les étapes Given/When/Then) à l'utilisateur via `ask_human`.
+                   - Attendez la validation du flux logique avant de parler des données.
+                3. POUR CHAQUE LIGNE DE DONNÉES (Examples) :
+                   - VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil `ask_human` pour faire valider les valeurs.
+                4. VÉRIFICATION FINALE GLOBALE (OBLIGATOIRE - NE PAS SÉQUENCER) :
+                   - Après tous les points, affichez le FICHIER GHERKIN COMPLET généré.
+                    - Demandez EXPLICITEMENT l'autorisation via `ask_human` : "Validez-vous ce design final (Scénarios + JDD) ? Répondez 'GO' pour envoyer ou indiquez les modifications".
+                    - **BOUCLE DE SÉCURITÉ** : Si l'utilisateur demande un résumé, émet une critique ou demande des changements, vous devez REPRENDRE l'échange et RE-DEMANDER le 'GO' final via `ask_human`.
+                   - IL EST INTERDIT de donner votre 'Final Answer' tant que la réponse à `ask_human` n'est pas strictement 'GO' ou une validation sans équivoque.
+                5. Mémorisez les nouveaux JDD via `update_knowledge` APRÈS avoir reçu le 'GO'.
+                6. CLÔTURE : Votre 'Final Answer' ne peut être donné QUE si l'autorisation 'GO' a été obtenue.
+            """),
+            agent=agent,
+            context=[design_context],
+            expected_output="Contenu final du fichier .feature et mise à jour de la mémoire JDD."
+        )
+
+    def code_generation_task(self, agent, design_context, xray_context, issue_key=None, base_url=None):
         feature_tag_instruction = ""
         if issue_key:
             feature_tag_instruction = f"- Tu dois insérer le tag de la User Story (@{issue_key}) juste au dessus de 'Feature:'."
             
         from src.models import CodeGenerationOutput
 
+        url_to_inspect = base_url if base_url else "http://localhost:3000/#/"
+
         return Task(
             description=dedent(f"""
-                Traduire les scénarios Gherkin en Step Definitions Playwright (BDD).
+                Tu es un ingénieur autonome. Ta mission est d'implémenter et de VALIDER les tests Playwright pour la User Story.
                 
-                EXIGENCES:
-                1. Utiliser le pattern Page Object Model (POM).
-                2. Écrire en TypeScript.
-                3. Utiliser `createBdd` de `playwright-bdd` pour les steps.
-                4. Séparer le Page Object (.page.ts) des Step Definitions (.steps.ts).
+                SOURCE :
+                Utilise les scénarios Gherkin fournis dans le contexte (design_context) comme source de vérité.
+                **RÈGLE D'IMMUTABILITÉ** : Il est strictement INTERDIT de modifier les scénarios Gherkin pour faire passer un test. Si un test échoue, vous devez corriger le CODE (Page Objects ou Steps) pour qu'il corresponde aux scénarios.
                 
-                INTEGRATION XRAY :
-                Conserver les tags Xray dans le fichier `.feature` (via la réécriture), cela suffit pour la traçabilité.
-                   
-                LIVRABLES ATTENDUS :
-                Tu dois fournir une liste de fichiers structurée (JSON/Pydantic).
+                ACTIONS ATTENDUES :
+                1.  **AUDIT DU CODE EXISTANT (OBLIGATOIRE)** :
+                    - Utilisez `list_files` sur `src/pages/`, `steps/` et `features/`.
+                    - Si des fichiers existent déjà pour cette fonctionnalité (ex: `login.page.ts`), utilisez `read_file` pour les analyser.
+                    - **RÈGLE ANTI-DUPLICATION** : Si un fichier existe, vous devez le METTRE À JOUR avec `write_file` plutôt que d'en créer un nouveau (exemple: ne créez pas `login_v2.page.ts`).
                 
-                Liste des fichiers attendus :
-                1. `features/<feature>.feature` (Le Gherkin enrichi avec les tags @SCRUM-XXX)
-                2. `src/pages/<feature>.page.ts` (Page Object standard Playwright)
-                3. `steps/<feature>.steps.ts` (Step Definitions)
+                2.  **ARCHITECTURE BDD STRICTE (playwright-bdd)** :
+                    - Ce projet utilise `playwright-bdd`. Vous ne devez PAS créer de fichiers `.spec.ts` ou `.test.ts` manuellement.
+                    - Structure cible :
+                    - Structure cible :
+                      - `features/{issue_key}_{{feature_name}}.feature` : Contient le Gherkin complet (@{{issue_key}} obligatoire).
+                      - `src/steps/{{feature_name}}.steps.ts` : Contient les `createBdd` et `Given/When/Then`.
+                        - EXEMPLE : `import {{ createBdd }} from 'playwright-bdd'; import {{ test }} from '../fixtures'; const {{ Given, When, Then }} = createBdd(test); ...`
+                      - `src/pages/{{feature_name}}.page.ts` : Contient la logique Page Object.
                 
-                Exemple de Step Definition :
-                ```typescript
-                import {{ createBdd }} from 'playwright-bdd';
-                import {{ test }} from './fixtures'; // ou import standard
-                import {{ MyPage }} from '../src/pages/my.page';
-
-                const {{ Given, When, Then }} = createBdd();
-
-                // IMPORTANT : N'utilisez JAMAIS 'And' ou 'But' en TypeScript.
-                // Mappez les étapes 'And' d'un Feature vers Given/When/Then selon le contexte.
-
-                Given('I am on the homepage', async ({{ page }}) => {{
-                    const myPage = new MyPage(page);
-                    await myPage.goto();
-                }});
-                ```
+                3.  **EXPLORATION DE L'UI (VISION & ACTION)** :
+                    - Si de nouveaux éléments sont nécessaires (ex: Dashboard après login), utilisez `explore_page_with_actions` pour atteindre l'état désiré et inspecter le DOM.
+                    - Utilisez `inspect_page` pour les pages publiques.
+                    - En cas de doute technique, utilisez `ask_human`.
+                
+                4.  **IMPLÉMENTATION & REFACTORING** :
+                    - Injectez les nouveaux sélecteurs et méthodes dans les Page Objects (existant ou nouveau).
+                    - Implémentez les Step Definitions dans `steps/` (extension `.steps.ts`) en utilisant `createBdd` de `playwright-bdd`.
+                    - **INTERDICTION** : Ne pas mettre de code de test (locators, assertions complexes) directement dans les steps. Appelez les méthodes du Page Object.
+                
+                5.  **BOUCLE D'AUTONOMIE & VALIDATION** :
+                    - Lancez le test avec `run_playwright_test`.
+                    - **ANALYSE DES ÉCHECS** : SI LE TEST ÉCHOUE, vous devez IMPÉRATIVEMENT utiliser `take_screenshot` et `get_console_logs` pour diagnostiquer la cause réelle (mauvais sélecteur, timeout, etc.).
+                    - **AUTO-CORRECTION** : Appliquez les corrections sur le CODE TypeScript.
+                    - **RÉPÉTITION** : Répétez le cycle jusqu'à ce que 100% des scénarios passent.
+                
+                LIVRABLES :
+                Ne retourne PAS de JSON. Retourne un rapport textuel final ("Rapport de Validation") incluant :
+                - Résumé des fichiers mis à jour/créés.
+                - Capture du résultat final du test (Playwright output).
+                - Liste des problèmes rencontrés et comment ils ont été résolus sans modifier le Gherkin.
             """),
             agent=agent,
             context=[design_context, xray_context],
-            output_pydantic=CodeGenerationOutput,
-            expected_output="Un objet CodeGenerationOutput contenant les fichiers .feature, .page.ts et .steps.ts."
+            expected_output="Un rapport textuel confirmant que les fichiers sont créés et que les tests passent."
         )
 
     def review_task(self, agent, code_context, design_context, xray_context):

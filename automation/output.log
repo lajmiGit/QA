@@ -1,0 +1,27 @@
+
+Running 18 tests using 4 workers
+
+[1A[2K[1/18] [chromium] › .features-gen/features/SCRUM-272_login.feature.spec.js:12:9 › User Authentication (US_Login) › Successful login with valid credentials › Example #1 @functional @happy_path
+[1A[2K[2/18] [chromium] › .features-gen/features/SCRUM-272_login.feature.spec.js:51:9 › User Authentication (US_Login) › Login validation for missing fields › Example #1 @functional @validation
+[1A[2K[3/18] [chromium] › .features-gen/features/SCRUM-272_login.feature.spec.js:69:9 › User Authentication (US_Login) › Login validation for missing fields › Example #3 @functional @validation
+[1A[2K[4/18] [chromium] › .features-gen/features/SCRUM-272_login.feature.spec.js:60:9 › User Authentication (US_Login) › Login validation for missing fields › Example #2 @functional @validation
+[1A[2K[5/18] [chromium] › .features-gen/features/SCRUM-272_login.feature.spec.js:82:9 › User Authentication (US_Login) › Verify Login UI elements and states › Example #1 @ui @visual
+[1A[2K[6/18] [chromium] › .features-gen/features/SCRUM-272_login.feature.spec.js:88:9 › User Authentication (US_Login) › Verify Login UI elements and states › Example #2 @ui @visual
+[1A[2K[7/18] [firefox] › .features-gen/features/SCRUM-272_login.feature.spec.js:12:9 › User Authentication (US_Login) › Successful login with valid credentials › Example #1 @functional @happy_path
+[1A[2K[8/18] [firefox] › .features-gen/features/SCRUM-272_login.feature.spec.js:51:9 › User Authentication (US_Login) › Login validation for missing fields › Example #1 @functional @validation
+[1A[2K[9/18] [firefox] › .features-gen/features/SCRUM-272_login.feature.spec.js:60:9 › User Authentication (US_Login) › Login validation for missing fields › Example #2 @functional @validation
+[1A[2K[10/18] [firefox] › .features-gen/features/SCRUM-272_login.feature.spec.js:69:9 › User Authentication (US_Login) › Login validation for missing fields › Example #3 @functional @validation
+[1A[2K[11/18] [firefox] › .features-gen/features/SCRUM-272_login.feature.spec.js:82:9 › User Authentication (US_Login) › Verify Login UI elements and states › Example #1 @ui @visual
+[1A[2K[12/18] [firefox] › .features-gen/features/SCRUM-272_login.feature.spec.js:88:9 › User Authentication (US_Login) › Verify Login UI elements and states › Example #2 @ui @visual
+[1A[2K[13/18] [webkit] › .features-gen/features/SCRUM-272_login.feature.spec.js:12:9 › User Authentication (US_Login) › Successful login with valid credentials › Example #1 @functional @happy_path
+[1A[2K[14/18] [webkit] › .features-gen/features/SCRUM-272_login.feature.spec.js:51:9 › User Authentication (US_Login) › Login validation for missing fields › Example #1 @functional @validation
+[1A[2K[15/18] [webkit] › .features-gen/features/SCRUM-272_login.feature.spec.js:60:9 › User Authentication (US_Login) › Login validation for missing fields › Example #2 @functional @validation
+[1A[2K[16/18] [webkit] › .features-gen/features/SCRUM-272_login.feature.spec.js:69:9 › User Authentication (US_Login) › Login validation for missing fields › Example #3 @functional @validation
+[1A[2K[17/18] [webkit] › .features-gen/features/SCRUM-272_login.feature.spec.js:82:9 › User Authentication (US_Login) › Verify Login UI elements and states › Example #1 @ui @visual
+[1A[2K[18/18] [webkit] › .features-gen/features/SCRUM-272_login.feature.spec.js:88:9 › User Authentication (US_Login) › Verify Login UI elements and states › Example #2 @ui @visual
+[1A[2K  18 passed (12.8s)
+
+To open last HTML report run:
+[36m[39m
+[36m  npx playwright show-report[39m
+[36m[39m

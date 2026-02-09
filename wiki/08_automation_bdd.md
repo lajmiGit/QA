@@ -14,8 +14,9 @@ L'objectif est de transformer les scénarios Gherkin générés par l'IA en test
 Le dossier `automation/` est un projet Node.js/TypeScript autonome.
 
 -   **`features/`** : Contient les fichiers `.feature` (Gherkin). C'est la **Source de Vérité**.
--   **`steps/`** : Contient les *Step Definitions* (`.steps.ts`). C'est le code qui fait le lien entre le Gherkin et Playwright.
+-   **`src/steps/`** : Contient les *Step Definitions* (`.steps.ts`). C'est le code qui fait le lien entre le Gherkin et Playwright.
 -   **`src/pages/`** : Contient les *Page Objects* (`.page.ts`). Encapsule la logique d'interaction avec l'UI (sélecteurs, actions).
+-   **`src/fixtures/`** : Contient les fixtures Playwright (`index.ts`) pour l'injection de dépendances (Pages, Actors).
 -   **`.features-gen/`** : Dossier généré automatiquement par `bddgen`. Il contient les tests techniques Playwright (`.spec.js`) dérivés des features. **Ne pas modifier manuellement.**
 -   **`playwright.config.ts`** : Configuration globale (Base URL, Navigateurs, Timeouts).
 

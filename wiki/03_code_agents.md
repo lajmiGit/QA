@@ -54,13 +54,25 @@ def analyst_agent(self):
     return Agent(
         role='Analyste QA (Requirement Agent)',
         goal='Décortiquer les User Stories...',
-        backstory="""Vous êtes un expert en analyse métier...""",
-        verbose=True,      # Affiche ce que l'agent "pense" dans la console
-        allow_delegation=False, # L'agent doit faire le travail lui-même, pas sous-traiter
-        llm=self.llm
+        ...
     )
 ```
-*   **Pourquoi ce Backstory ?** On lui dit qu'il est "expert". Cela incite le modèle à utiliser un vocabulaire professionnel et structuré. On insiste sur la "capacité à transformer des besoins vagues", car c'est le défi principal des User Stories.
+
+#### Les Interviewers (Specialized Validation Agents) [NEW]
+
+Nous avons introduit deux agents spécialisés pour la validation interactive :
+
+1.  **Requirement Interviewer** : 
+    - **Rôle** : Expert en Analyse de Besoins.
+    - **Mission** : Valider les règles de gestion point par point avec l'utilisateur.
+    - **Outils** : `ask_human`, `query_knowledge`, `update_knowledge`.
+2.  **Design Interviewer** :
+    - **Rôle** : Validateur de Design & JDD.
+    - **Mission** : Valider les scénarios Gherkin et les Examples. Applique la **Boucle de Sécurité** pour le "GO" final.
+    - **Outils** : `ask_human`, `query_knowledge`, `update_knowledge`.
+
+> [!IMPORTANT]
+> Ces agents sont les seuls à interagir directement avec l'utilisateur via le terminal.
 
 #### Le Designer (BDD Specialist)
 
@@ -86,6 +98,18 @@ def sdet_agent(self):
 ```
 *   **SDET (Software Development Engineer in Test)** : C'est un développeur logiciel qui est spécialisé dans le test. Contrairement à un testeur manuel, il écrit du code pour tester le code.
 *   **Point Critique** : Le prompt insiste sur le **Page Object Model (POM)**. Sans cette instruction dans le backstory, le modèle pourrait générer des scripts simples et "sales" (tout dans un seul fichier). Ici, on lui impose une architecture logicielle propre dès sa définition.
+
+#### Le SDET Interactif (State-Aware) [NEW]
+
+Depuis la mise à jour "Interactive Mode", cet agent dispose d'une capacité unique : **la Génération de Code Consciente de l'État (State-Aware Code Generation)**.
+
+*   **Problème** : Comment écrire le Page Object d'une page accessible *seulement après login* (ex: Dashboard) sans deviner les sélecteurs ?
+*   **Solution** : L'outil `explore_page_with_actions`.
+*   **Fonctionnement** :
+    1.  L'agent reçoit l'ordre de coder la page Dashboard.
+    2.  Il utilise l'outil pour **exécuter réellement** le login (naviguer vers `/login`, remplir user/pass, cliquer).
+    3.  L'outil lui renvoie le **DOM réel** de la page d'arrivée.
+    4.  L'agent génère alors les sélecteurs parfaits basés sur la réalité, pas sur des suppositions.
 
 #### Le Superviseur (QA Lead)
 

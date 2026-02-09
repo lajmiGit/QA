@@ -65,6 +65,14 @@ npx playwright install
 cd ..
 ```
 
+### 6. Démarrage du Serveur MCP (Critique)
+Le système repose sur un serveur MCP pour les outils Playwright. Il doit être lancé avant ou par le script principal (automatique), mais pour le debug :
+
+```bash
+cd automation
+npm run start:mcp
+```
+
 ## Vérification
 
 1.  **Python** :

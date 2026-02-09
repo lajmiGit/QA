@@ -9,7 +9,8 @@ L'**Agent d'Intégration** utilise ce connecteur au tout début du cycle pour ex
 ### Fonctionnement :
 - **Entrée** : Une clé de ticket Jira (ex: `QA-123`).
 - **Action** : L'outil appelle l'API REST de Jira Cloud pour récupérer le **Projet**, le Résumé (Summary) et la Description de la US via la tâche `jira_fetch_task`.
-- **Transmission** : Le contenu récupéré (incluant le `Project Key`) est ensuite passé en contexte à l'**Analyste QA** et à l'**Agent d'Intégration** pour l'étape finale d'import.
+- **Mémoire & JDD** : Les Interviewers couplent ces données avec la `knowledge_base.json` pour proposer des jeux de données historiques dès la récupération du ticket.
+- **Transmission** : Le contenu récupéré (incluant le `Project Key`) est ensuite passé en contexte à l'**Analyste QA** et aux **Interviewers**.
 
 ### Utilisation :
 Lancez le script avec l'argument `--issue` et `--project` (pour le projet cible Xray) :

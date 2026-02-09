@@ -11,7 +11,7 @@ Assurez-vous d'avoir suivi le guide d'installation et configuré votre fichier `
 Pour lancer le cycle complet (Analyse -> Design -> Code -> Revue), exécutez la commande suivante depuis la racine du projet :
 
 ```bash
-.venv/bin/python3 main.py
+.venv/bin/python3 main.py --issue SCRUM-272
 ```
 
 ## Déroulement

@@ -1,0 +1,7 @@
+# Project Brain
+
+## Règles Métier Validées
+Règles techniques US_001 validées : 1. Login UI : Titre 'Customer Login' (colonne gauche), Bouton 'LOG IN' (orange, majuscules), Liens 'Forgot login info?' et 'Register'. 2. Auth Logic : Erreurs spécifiques ('The username and password could not be verified.', 'Please enter a username and password.'), Username sensible à la casse. 3. Dashboard : Message 'Welcome [Prénom Nom]' dans la barre latérale GAUCHE (priorité Maquette sur US), Menu 'Account Services' à gauche. 4. Tableau : Colonnes Account/Balance/Available, Ligne Total, Note de bas de page incluse. Pas de spécification de redirection pour les liens comptes pour l'instant.
+
+## Jeux de Données Préférés
+User 'john' (password: 'demo') corresponds to Firstname 'Jhon' and Lastname 'Smith'.

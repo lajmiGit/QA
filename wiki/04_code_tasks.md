@@ -34,21 +34,23 @@ def analysis_task(self, agent, user_story_context=None, direct_input=None):
 *   **Flexibilité** : Cette tâche peut maintenant prendre soit un `user_story_context` (venant de Jira), soit un `direct_input` (texte fourni manuellement).
 *   **Prompting** : Elle transforme la donnée brute en un document d'analyse structuré (Règles, Critères, APIs).
 
-### 2. La Tâche de Design (`test_design_task`)
+### 3. Les Tâches de Validation (Interview Tasks) [NEW]
 
-```python
-    def test_design_task(self, agent, analysis_context):
-        return Task(
-            description=...,
-            agent=agent,
-            context=[analysis_context], # <--- LE LIEN MAGIQUE
-            expected_output="..."
-        )
-```
-*   **Le Chaînage (`context`)** : Remarquez `context=[analysis_context]`.
-    *   `analysis_context` sera l'objet `Task` de l'étape précédente.
-    *   CrewAI va automatiquement prendre le résultat textuel de l'analyse et l'injecter dans le prompt de cette tâche de design.
-    *   L'agent Designer n'a donc pas besoin de lire la User Story originale, il travaille sur l'analyse "digérée" par l'Analyste.
+C'est ici qu'interviennent les portes de validation humaine.
+
+#### `interview_analysis_task`
+- **Agent** : `RequirementInterviewer`
+- **Protocole** : Présentation des règles une par une via `ask_human`. L'agent suggère des réponses basées sur la mémoire (`query_knowledge`).
+
+#### `interview_design_task`
+- **Agent** : `DesignInterviewer`
+- **Protocole (Boucle de Sécurité)** : 
+    - Validation du flux Gherkin.
+    - Validation des données (`Examples`).
+    - **Obligation** : Demander un "GO" final avec affichage du fichier complet.
+    - **Loop** : Toute réponse non-affirmative (`GO`) force l'agent à reprendre l'échange.
+
+### 4. La Tâche de Design (`test_design_task`)
 
 ### 3. La Tâche de Code (`code_generation_task`)
 
@@ -65,6 +67,7 @@ def analysis_task(self, agent, user_story_context=None, direct_input=None):
         )
 ```
 *   **Spécificité Technique** : Ici, le prompt devient très technique. On demande du TypeScript et une structure de fichiers spécifique.
+*   **Mode Interactif (State-Aware)** : La tâche instruit désormais l'agent d'utiliser `explore_page_with_actions` pour "voir" les pages cachées (post-login) avant de coder, garantissant des sélecteurs valides.
 *   **Output Attendu** : On précise "Code complet, importable". Cela évite que le modèle ne réponde avec du pseudo-code ou des explications textuelles inutiles ("Voici le code..."). On veut directement la matière première.
 
 ### 5. La Revue (`review_task`)
