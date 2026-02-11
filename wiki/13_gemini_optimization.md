@@ -39,5 +39,17 @@ Le savoir est injecté dynamiquement :
 - **Stabilité** : Disparition des erreurs 429 lors des analyses multicouches.
 - **Vitesse** : Initialisation instantanée car l'agent possède déjà sa base de connaissances au premier token.
 
+---
+
+## 4. Analyse de Performance (Monitoring)
+
+Bien que l'IA soit rapide, certains facteurs externes influencent la vitesse perçue :
+
+1.  **Pauses de Quota (Configuration)** : Une pause de **20 secondes** est configurée après chaque tâche pour respecter les limites RPM sur les comptes gratuits.
+2.  **Initialisation du Cache** : L'upload initial du Wiki prend environ **15 secondes** au démarrage de `main.py`.
+3.  **Vision Flash** : Le traitement d'images haute résolution par Gemini Flash est plus lent que le traitement de texte pur (~5-10s par image).
+
+---
+
 > [!IMPORTANT]
 > Le cycle de vie des caches est géré par le `GeminiContextManager` dans `src/utils/gemini_cache.py`.

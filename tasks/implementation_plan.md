@@ -32,7 +32,7 @@ Nous allons implémenter 4 agents distincts dans `agents.py` (ou des fichiers s�
 ## Structure du Projet
 
 ```text
-/Users/lajmi/Documents/qa_labo_ia/
+qa_labo_ia/
 ├── .env                  # Clés API (GOOGLE_API_KEY)
 ├── main.py               # Point d'entrée pour lancer le Crew
 ├── src/

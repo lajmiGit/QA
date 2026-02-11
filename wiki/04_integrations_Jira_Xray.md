@@ -26,9 +26,12 @@ L'**Agent d'Intégration** intervient à nouveau à la toute fin du processus po
 - **Action** : Une fois que le code et le Gherkin sont validés par le **Superviseur**, l'Agent d'Intégration lance la tâche `xray_push_task`.
 - **Résultat** : Les scénarios Gherkin sont importés via l'endpoint `/import/feature`.
 - **Stratégie Avancée** :
-    1.  **Test Set** : Un Test Set portant le nom de la Feature (ex: `Modify Basket Item Quantity`) est créé ou réutilisé. Tous les tests créés y sont liés.
-    2.  **Pre-Condition** : Si le Gherkin contient un `Background`, une Pre-Condition Xray est créée et liée aux tests correspondants.
-    3.  **Output** : L'outil retourne les clés des Test Sets et Pre-Conditions créés pour une traçabilité complète.
+    1.  **Test Set** : Un Test Set portant le nom de la Feature (ex: `Modify Basket Item Quantity`) est créé ou réutilisé.
+    2.  **Pre-Condition** : Si le Gherkin contient un `Background`, une Pre-Condition Xray est créée.
+    3.  **Liaison GraphQL (Interne)** : Étant donné que l'importation de fichiers Feature ne lie pas toujours les tests aux Test Sets dans Xray Cloud, le framework effectue une requête GraphQL complémentaire après l'import.
+        - **Endpoint** : `https://xray.cloud.getxray.app/api/v2/graphql`
+        - **Mutation** : Utilise `addTestsToTestSet` et `addTestsToPrecondition` pour sceller les liens dans Jira.
+    4.  **Output** : L'outil retourne les clés Jira des éléments créés pour assurer la traçabilité.
 
 ## Configuration Requise (.env)
 

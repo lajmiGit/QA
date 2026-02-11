@@ -50,5 +50,7 @@ GOOGLE_API_KEY=votre_cle_api_ici
 ## Documentation Complémentaire : Validation & Mémoire
 
 Pour approfondir les nouveaux concepts d'interaction et de mémorisation :
-- [10_interactive_protocol.md](file:///Users/lajmi/Documents/qa_labo_ia/wiki/10_interactive_protocol.md) : Détails sur le protocole "Human-in-the-Loop" et la porte de sécurité.
-- [11_memory_system.md](file:///Users/lajmi/Documents/qa_labo_ia/wiki/11_memory_system.md) : Fonctionnement de la base de connaissances persistante.
+- [10_interactive_protocol.md](./10_interactive_protocol.md) : Détails sur le protocole "Human-in-the-Loop".
+- [11_memory_system.md](./11_memory_system.md) : Fonctionnement de la base de connaissances.
+- [13_gemini_optimization.md](./13_gemini_optimization.md) : Stratégie Triple-Piliers.
+- [14_debug_guide.md](./14_debug_guide.md) : **Guide de Diagnostic et Debug.**
