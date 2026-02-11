@@ -1,5 +1,6 @@
 from crewai import Task
 from textwrap import dedent
+from src.models import RuleInventory, GherkinDesign
 
 class LaboQaTasks:
     def jira_fetch_task(self, agent, issue_key):
@@ -17,13 +18,18 @@ class LaboQaTasks:
             ÉTAPE 0 : CONSULTATION DU CERVEAU (OBLIGATOIRE)
             - Interrogez le 'Cerveau du Projet' via `query_knowledge` en posant une question précise en langage naturel sur les règles déjà validées ou l'historique de cette fonctionnalité. Ne redéfinissez pas ce qui est déjà acté.
             
-            ÉTAPE CRITIQUE : DISCOVERY VISUELLE (OBLIGATOIRE)
-            1. VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil 'list_files' sur le dossier 'docs/resources/' (relatif à votre environnement de travail) pour identifier les sous-dossiers (comme SCRUM-189).
-            2. Explorez le sous-dossier correspondant au ticket actuel.
-            3. POUR CHAQUE IMAGE trouvée, vous DEVEZ appeler 'analyze_resource_image' pour m'expliquer ce qu'elle contient.
+            ÉTAPE CRITIQUE : DISCOVERY VISUELLE CIBLÉE (OBLIGATOIRE)
+            1. LISTE DES RESSOURCES : Appelez l'outil 'list_files' sur le dossier 'resources/' pour voir les dossiers disponibles (ex: SCRUM-326, SCRUM-189).
+            2. CHOIX DE L'UTILISATEUR : Appelez l'outil 'ask_human' en présentant la liste des dossiers trouvés et demandez : "Dans quel dossier spécifique (ex: resources/SCRUM-XXX) dois-je effectuer l'analyse visuelle pour ce ticket ?".
+            3. ANALYSE SÉLECTIVE : Une fois le dossier confirmé (ex: 'resources/SCRUM-326'), listez les fichiers de CE DOSSIER UNIQUEMENT.
+            4. INTERROGATION DE LA MÉMOIRE : Consultez le 'Cerveau du Projet' via `query_knowledge` pour récupérer le "Registre des Ressources Analysées" pour ce ticket spécifique.
+            5. LOGIQUE DE DÉCISION (PROTOCOLE DELTA) : 
+               - Comparez les `mtime` des fichiers du dossier choisi avec ceux en mémoire.
+               - Ne lancez 'analyze_resource_image' ou 'analyze_scenario_video' QUE pour les nouveaux fichiers ou ceux modifiés.
+            6. MISE À JOUR DU REGISTRE : En fin d'analyse, utilisez `update_knowledge` pour mettre à jour le Registre des Ressources.
             
             PHASE 2 : ANALYSE FONCTIONNELLE
-            Une fois (et seulement une fois) que vous avez 'regardé' toutes les images disponibles et consulté le cerveau sémantique, extrayez toutes les NOUVELLES règles ou ajustements de la User Story.
+            Une fois (et seulement une fois) que vous avez consolidé l'analyse de toutes les ressources (nouvelles et anciennes), extrayez toutes les NOUVELLES règles ou ajustements de la User Story.
         """)
         if direct_input:
             description += f"\nDonnée d'entrée directe: {direct_input}\n"
@@ -43,6 +49,7 @@ class LaboQaTasks:
             description=description,
             agent=agent,
             context=context,
+            output_pydantic=RuleInventory, # Nettoyage du contexte via structure JSON
             expected_output="Un inventaire technique complet des règles (non validé)."
         )
 
@@ -60,8 +67,10 @@ class LaboQaTasks:
                    - Une fois tous les points discutés, présentez une RÉCAPITULATION COMPLÈTE numérotée de tous les points validés.
                    - Demandez EXPLICITEMENT l'autorisation finale via `ask_human` : "Confirmez-vous l'ensemble de ces points pour passage à la conception ? (Tapez 'GO' pour valider ou listez les points à revoir)".
                    - TANT QUE vous n'avez pas un "GO" ou une validation globale claire, vous devez RESTER dans cette tâche.
-                4. Une fois le "GO" reçu, enregistrez les nouveautés via `update_knowledge`.
-                5. VOTRE RÉPONSE FINALE ne doit être que le résumé de l'accord final obtenu.
+                4. CAPACITÉ VISUELLE & VIDÉO DE CLARIFICATION :
+                   - Si l'utilisateur mentionne une image, une vidéo ou si un point semble ambigu, utilisez `analyze_resource_image` ou `analyze_scenario_video`. Ne faites pas de redécouverte globale, soyez ciblé sur le doute exprimé.
+                5. Une fois le "GO" reçu, enregistrez les nouveautés via `update_knowledge`.
+                6. VOTRE RÉPONSE FINALE ne doit être que le résumé de l'accord final obtenu.
             """),
             agent=agent,
             context=[analysis_context],
@@ -83,6 +92,7 @@ class LaboQaTasks:
             """),
             agent=agent,
             context=[interview_context],
+            output_pydantic=GherkinDesign, # Nettoyage du contexte
             expected_output="Brouillon Gherkin avec Scenario Outlines et tables Examples."
         )
 
@@ -98,13 +108,15 @@ class LaboQaTasks:
                    - Attendez la validation du flux logique avant de parler des données.
                 3. POUR CHAQUE LIGNE DE DONNÉES (Examples) :
                    - VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil `ask_human` pour faire valider les valeurs.
-                4. VÉRIFICATION FINALE GLOBALE (OBLIGATOIRE - NE PAS SÉQUENCER) :
+                4. VISION & VIDÉO POUR VALIDATION :
+                   - Si l'utilisateur conteste un design en se basant sur une capture ou un enregistrement, utilisez `analyze_resource_image` ou `analyze_scenario_video` pour confronter le design avec la réalité.
+                5. Mémorisez les nouveaux JDD via `update_knowledge` APRÈS avoir reçu le 'GO'.
+                6. VÉRIFICATION FINALE GLOBALE (OBLIGATOIRE - NE PAS SÉQUENCER) :
                    - Après tous les points, affichez le FICHIER GHERKIN COMPLET généré.
                     - Demandez EXPLICITEMENT l'autorisation via `ask_human` : "Validez-vous ce design final (Scénarios + JDD) ? Répondez 'GO' pour envoyer ou indiquez les modifications".
                     - **BOUCLE DE SÉCURITÉ** : Si l'utilisateur demande un résumé, émet une critique ou demande des changements, vous devez REPRENDRE l'échange et RE-DEMANDER le 'GO' final via `ask_human`.
                    - IL EST INTERDIT de donner votre 'Final Answer' tant que la réponse à `ask_human` n'est pas strictement 'GO' ou une validation sans équivoque.
-                5. Mémorisez les nouveaux JDD via `update_knowledge` APRÈS avoir reçu le 'GO'.
-                6. CLÔTURE : Votre 'Final Answer' ne peut être donné QUE si l'autorisation 'GO' a été obtenue.
+                7. CLÔTURE : Votre 'Final Answer' ne peut être donné QUE si l'autorisation 'GO' a été obtenue.
             """),
             agent=agent,
             context=[design_context],
@@ -153,10 +165,13 @@ class LaboQaTasks:
                     - Implémentez les Step Definitions dans `steps/` (extension `.steps.ts`) en utilisant `createBdd` de `playwright-bdd`.
                     - **INTERDICTION** : Ne pas mettre de code de test (locators, assertions complexes) directement dans les steps. Appelez les méthodes du Page Object.
                 
-                5.  **BOUCLE D'AUTONOMIE & VALIDATION** :
+                5.  **BOUCLE D'AUTONOMIE & VALIDATION (PROTOCOLE RE-INSPECT)** :
                     - Lancez le test avec `run_playwright_test`.
-                    - **ANALYSE DES ÉCHECS** : SI LE TEST ÉCHOUE, vous devez IMPÉRATIVEMENT utiliser `take_screenshot` et `get_console_logs` pour diagnostiquer la cause réelle (mauvais sélecteur, timeout, etc.).
-                    - **AUTO-CORRECTION** : Appliquez les corrections sur le CODE TypeScript.
+                    - **ANALYSE DES ÉCHECS : SI LE TEST ÉCHOUE, VOUS DEVEZ PROCÉDER COMME SUIT (STRICT) :**
+                        a. **RE-NAVIGATION** : Utilisez `explore_page_with_actions` pour atteindre exactement l'état où le test a échoué.
+                        b. **INSPECTION TECHNIQUE SÉMANTIQUE** : Appelez `inspect_page` sur l'URL actuelle pour obtenir les nouveaux locateurs (Rôles Aria, Noms Accessibles).
+                        c. **AUDIT VISUEL** : Prenez un screenshot (`take_screenshot`) et analysez-le avec `analyze_resource_image` pour confronter la vision IA avec les données techniques du DOM.
+                    - **AUTO-CORRECTION** : Appliquez les corrections sur le CODE TypeScript en privilégiant les `suggestedLocator` fournis par l'outil d'inspection (getByRole, getByPlaceholder).
                     - **RÉPÉTITION** : Répétez le cycle jusqu'à ce que 100% des scénarios passent.
                 
                 LIVRABLES :
@@ -180,13 +195,14 @@ class LaboQaTasks:
                 2. Les sélecteurs utilisés semblent-ils robustes ?
                 3. Le code respecte-t-il le pattern POM ?
                 4. Tous les scénarios Gherkin sont-ils couverts par le code ?
-                5. VÉRIFICATION IMPORTANTE : Confirmer que l'import Xray a réussi (vérifier le contexte xray_context).
+                5. RÉSULTAT TECHNIQUE : Le rapport doit confirmer EXPLICITEMENT que l'exécution Playwright est passée à 100% (vérifier output de code_generation_task).
+                6. VÉRIFICATION IMPORTANTE : Confirmer que l'import Xray a réussi (vérifier le contexte xray_context).
                 
-                Si tout est bon, valider le résultat. Sinon, lister les corrections nécessaires.
+                Si tout est bon, valider le résultat. Le rapport final doit inclure une section "Résultat de l'Exécution Technique". Sinon, lister les corrections nécessaires.
             """),
             agent=agent,
             context=[code_context, design_context, xray_context],
-            expected_output="Un rapport de validation final confirmant la qualité du code et la réussite de l'import Xray."
+            expected_output="Un rapport de validation final confirmant la qualité du code, le statut de l'exécution automatique (PASS/FAIL) et la réussite de l'import Xray."
         )
 
     def xray_push_task(self, agent, design_context, jira_context=None, project_key=None):

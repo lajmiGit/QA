@@ -38,6 +38,7 @@ class WriteFileTool(BaseTool):
     name: str = "write_file"
     description: str = "Write content to a file in the automation project. Use this to create or update test files, page objects, or step definitions."
     args_schema: Type[BaseModel] = WriteFileInput
+    cache: bool = False
 
     def _run(self, path: str, content: str) -> str:
         client = get_mcp_client()
@@ -59,6 +60,7 @@ class RunPlaywrightTestTool(BaseTool):
     name: str = "run_playwright_test"
     description: str = "Run Playwright tests. You can run all tests or target a specific file. Returns the test results."
     args_schema: Type[BaseModel] = RunTestInput
+    cache: bool = False
 
     def _run(self, testFile: Optional[str] = None) -> str:
         client = get_mcp_client()
@@ -77,7 +79,16 @@ class ListFilesTool(BaseTool):
     
     def _run(self, directory: str = ".") -> str:
         client = get_mcp_client()
-        result = client.call_tool("list_files", {"directory": directory})
+        
+        # Rediriger la consultation de 'resources/' vers la racine du projet
+        # Le serveur MCP tournant dans 'automation/', 'resources/' devient '../resources/'
+        target_dir = directory
+        if directory == "resources" or directory == "./resources":
+            target_dir = "../resources"
+        elif directory.startswith("resources/"):
+            target_dir = "../" + directory
+            
+        result = client.call_tool("list_files", {"directory": target_dir})
         return str(result)
 
 class InspectPageInput(BaseModel):
@@ -87,6 +98,7 @@ class InspectPageTool(BaseTool):
     name: str = "inspect_page"
     description: str = "Visit a URL and return a summary of interactive elements (buttons, inputs) with their selectors. Use this BEFORE writing selectors."
     args_schema: Type[BaseModel] = InspectPageInput
+    cache: bool = False
 
     def _run(self, url: str) -> str:
         client = get_mcp_client()
@@ -101,10 +113,21 @@ class TakeScreenshotTool(BaseTool):
     name: str = "take_screenshot"
     description: str = "Take a screenshot of a page. Useful for debugging UI issues."
     args_schema: Type[BaseModel] = ScreenshotInput
+    cache: bool = False
 
     def _run(self, url: str, path: str = "screenshot.png") -> str:
         client = get_mcp_client()
-        result = client.call_tool("take_screenshot", {"url": url, "path": path})
+        # Ensure we don't double the 'resources/' prefix if provided by the agent
+        clean_path = path
+        if path.startswith("resources/"):
+            clean_path = path[len("resources/"):]
+        elif path.startswith("./resources/"):
+            clean_path = path[len("./resources/"):]
+            
+        # The MCP server operates from 'automation/'
+        # We redirect to the root resources/ directory
+        redirected_path = os.path.join("..", "resources", clean_path)
+        result = client.call_tool("take_screenshot", {"url": url, "path": redirected_path})
         return str(result)
 
 class LogsInput(BaseModel):
@@ -114,6 +137,7 @@ class GetConsoleLogsTool(BaseTool):
     name: str = "get_console_logs"
     description: str = "Get console logs and errors from a page. Useful for debugging JS crashes."
     args_schema: Type[BaseModel] = LogsInput
+    cache: bool = False
 
     def _run(self, url: str) -> str:
         client = get_mcp_client()

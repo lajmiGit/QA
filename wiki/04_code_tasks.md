@@ -25,60 +25,45 @@ def jira_fetch_task(self, agent, issue_key):
 ```
 *   **Rôle** : Cette tâche est optionnelle. Elle n'est lancée que si un ID Jira est fourni. Elle permet d'alimenter la suite du pipeline avec du contenu réel.
 
-### 2. La Tâche d'Analyse (`analysis_task`)
+### 2. La Tâche d'Analyse (`analysis_task`) [BOOSTÉE]
 
 ```python
 def analysis_task(self, agent, user_story_context=None, direct_input=None):
     ...
 ```
-*   **Flexibilité** : Cette tâche peut maintenant prendre soit un `user_story_context` (venant de Jira), soit un `direct_input` (texte fourni manuellement).
-*   **Prompting** : Elle transforme la donnée brute en un document d'analyse structuré (Règles, Critères, APIs).
 
-### 3. Les Tâches de Validation (Interview Tasks) [NEW]
+*   **Discovery Visuelle Ciblée [NEW]** : 
+    - **Étape 1 : Liste** : Listing de `resources/` pour identifier les tickets disponibles.
+    - **Étape 2 : Dialogue** : Demande à l'utilisateur quel dossier analyser via `ask_human`.
+    - **Étape 3 : Delta** : Analyse uniquement les fichiers nouveaux ou modifiés dans le dossier choisi.
+*   **Context Trimming [NEW]** : Utilisation de `output_pydantic=RuleInventory` pour garantir une sortie structurée et minimiser la taille du contexte transmis aux tâches suivantes.
 
-C'est ici qu'interviennent les portes de validation humaine.
+### 3. Les Tâches de Validation (Interview Tasks)
 
 #### `interview_analysis_task`
 - **Agent** : `RequirementInterviewer`
-- **Protocole** : Présentation des règles une par une via `ask_human`. L'agent suggère des réponses basées sur la mémoire (`query_knowledge`).
+- **Livrable** : `RuleInventory` (Pydantic) mis à jour après validation humaine.
 
 #### `interview_design_task`
 - **Agent** : `DesignInterviewer`
-- **Protocole (Boucle de Sécurité)** : 
-    - Validation du flux Gherkin.
-    - Validation des données (`Examples`).
-    - **Obligation** : Demander un "GO" final avec affichage du fichier complet.
-    - **Loop** : Toute réponse non-affirmative (`GO`) force l'agent à reprendre l'échange.
+- **Livrable** : `GherkinDesign` (Pydantic) incluant les scénarios validés et le "GO" final.
 
 ### 4. La Tâche de Design (`test_design_task`)
+*   **Output** : Utilise le modèle Pydantic `GherkinDesign`.
 
-### 3. La Tâche de Code (`code_generation_task`)
-
-```python
-    def code_generation_task(self, agent, design_context):
-        return Task(
-            description=dedent(f"""
-                Générer le code d'automatisation Playwright...
-                Exigences Techniques:
-                1. Utiliser le pattern Page Object Model (POM).
-                ...
-            """),
-            ...
-        )
-```
-*   **Spécificité Technique** : Ici, le prompt devient très technique. On demande du TypeScript et une structure de fichiers spécifique.
-*   **Mode Interactif (State-Aware)** : La tâche instruit désormais l'agent d'utiliser `explore_page_with_actions` pour "voir" les pages cachées (post-login) avant de coder, garantissant des sélecteurs valides.
-*   **Output Attendu** : On précise "Code complet, importable". Cela évite que le modèle ne réponde avec du pseudo-code ou des explications textuelles inutiles ("Voici le code..."). On veut directement la matière première.
-
-### 5. La Revue (`review_task`)
-
-C'est la dernière barrière de qualité. Elle prend le code généré en contexte et demande au Superviseur de le valider techniquement et fonctionnellement.
-
-### 6. L'Import Xray (`xray_push_task`)
+### 5. La Tâche de Code (`code_generation_task`) [BOOSTÉE]
 
 ```python
-def xray_push_task(self, agent, review_context, design_context):
+def code_generation_task(self, agent, design_context):
     ...
-    expected_output="Une confirmation de l'import réussi dans Xray..."
 ```
-*   **Action Finale** : Cette tâche prend les scénarios validés et les pousse vers Xray via l'outil dédié. Elle ferme la boucle de l'automatisation.
+
+*   **Mode Interactif (State-Aware)** : L'agent utilise `explore_page_with_actions` pour "voir" les pages cachées.
+*   **BOUCLE DE DEBUG : PROTOCOLE RE-INSPECT (STRICT)** : En cas d'échec du test, l'agent re-navigue, inspecte le DOM Aria et analyse visuellement l'erreur avant de corriger.
+*   **Structured Output** : Utilise `output_pydantic=CodeGenerationOutput` pour produire les fichiers `.feature`, `.page.ts` et `.steps.ts` de manière propre.
+
+### 6. La Revue (`review_task`)
+*   **Supervision** : Validation technique du code généré.
+
+### 7. L'Import Xray (`xray_push_task`)
+*   **Action Finale** : Pousse les scénarios validés vers Xray Cloud, assurant la traçabilité complète entre la US et les tests automatisés.

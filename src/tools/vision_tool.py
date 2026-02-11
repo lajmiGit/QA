@@ -4,39 +4,48 @@ from typing import Type, Optional
 from pydantic import BaseModel, Field
 from crewai.tools import BaseTool
 import google.generativeai as genai
+from src.config import MODEL_FLASH
+from src.utils.resiliency import retry_gemini_api
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
+
+# Modèle vision (Configuré via main.py)
+# On initialise le modèle vision une fois à l'import
+vision_model = genai.GenerativeModel(MODEL_FLASH)
 
 class VisionResourceInput(BaseModel):
     """Input for VisionResourceTool."""
-    image_path: str = Field(..., description="Le chemin local vers l'image à analyser (ex: 'docs/resources/SCRUM-189/mockup.png').")
+    image_path: str = Field(..., description="Le chemin local vers l'image à analyser (ex: 'resources/SCRUM-189/mockup.png').")
     query: str = Field(..., description="La question spécifique ou le contexte d'analyse pour l'image.")
 
 class VisionResourceTool(BaseTool):
     name: str = "analyze_resource_image"
     description: str = (
         "OUTIL DE VISION PRIORITAIRE. À utiliser pour analyser les maquettes, screenshots ou schémas "
-        "présents dans 'docs/resources/'. Permet d'extraire des détails visuels invisibles dans le texte Jira."
+        "présents dans 'resources/'. Permet d'extraire des détails visuels invisibles dans le texte Jira."
     )
     args_schema: Type[BaseModel] = VisionResourceInput
 
     def _run(self, image_path: str, query: str) -> str:
-        # Tenter de trouver l'image à la racine ou dans le dossier automation/
-        actual_path = image_path
-        if not os.path.exists(actual_path):
-            actual_path = os.path.join("automation", image_path)
+        # Priorité de recherche : Dossier resources/ racine, puis direct, puis automation/
+        paths_to_check = [
+            os.path.join("resources", image_path),
+            image_path,
+            os.path.join("automation", image_path)
+        ]
         
-        if not os.path.exists(actual_path):
-            return f"Erreur : Le fichier image {image_path} est introuvable (tenté aussi {actual_path})."
+        actual_path = None
+        for p in paths_to_check:
+            if os.path.exists(p):
+                actual_path = p
+                break
+        
+        if not actual_path:
+            return f"Erreur : Le fichier image {image_path} est introuvable (vérifié dans resources/, racine et automation/)."
 
         try:
-            # Initialisation de l'API Google Generative AI (Vision)
-            # On réutilise la clé API du système
-            api_key = os.getenv("GOOGLE_API_KEY")
-            if not api_key:
-                return "Erreur : GOOGLE_API_KEY non configurée."
-            
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-flash-latest')
-
             # Lecture et encodage de l'image
             with open(actual_path, "rb") as image_file:
                 image_data = image_file.read()
@@ -49,7 +58,7 @@ class VisionResourceTool(BaseTool):
                 }
             ]
 
-            response = model.generate_content(contents)
+            response = vision_model.generate_content(contents)
             return response.text
 
         except Exception as e:

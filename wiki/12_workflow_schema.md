@@ -10,7 +10,8 @@ graph TD
     end
 
     subgraph "Phase d'Analyse & Validation"
-        US_Brute --> Analyst["Analyste QA"]
+        US_Brute --> Analyst["Analyste QA (Flash)"]
+        Analyst <--> User_Res{{"Utilisateur (Sélection Dossier - ask_human)"}}
         Analyst -- "analysis_task" --> Draft_Rules["Brouillon des Règles"]
         Draft_Rules --> ReqInter["Requirement Interviewer"]
         

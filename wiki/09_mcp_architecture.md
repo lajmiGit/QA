@@ -20,14 +20,37 @@ Ce serveur expose une collection d'outils que les agents peuvent appeler directe
 | :--- | :--- | :--- |
 | **`write_file`** | Créer ou modifier un fichier (Features, Pages, Steps). | SDET |
 | **`read_file`** | Lire un fichier existant pour l'analyser. | SDET, Supervisor |
-| **`list_files`** | Lister l'arborescence pour comprendre la structure. | Analyst, SDET |
+| **`list_files`** | [ENHANCED] Lister les fichiers avec métadonnées (`name`, `mtime`, `size`). Permet l'analyse incrémentale. | Analyst, SDET |
 | **`run_playwright_test`** | Lancer les tests (tous ou fichier spécifique). Retourne les logs. | SDET |
-| **`inspect_page`** | Extraire le DOM simplifié d'une page publique. | SDET |
+| **`inspect_page`** | [ENHANCED] Extraire le DOM riche (Rôles Aria, Noms Accessibles) et suggérer des locateurs Playwright. | SDET |
 | **`take_screenshot`** | Capturer une image pour le debugging visuel. | SDET |
 | **`get_console_logs`** | Récupérer les erreurs JS de la console navigateur. | SDET |
-| **`explore_page_with_actions`** | [NEW] Naviguer, agir (click/fill) puis inspecter le DOM (State-Aware). | SDET (Interactif) |
+| **`explore_page_with_actions`** | [ENHANCED] Naviguer, agir puis inspecter le DOM avec Vision Sémantique. | SDET (Interactif) |
 
-## 3. Workflow SDET Interactif
+## 3. Vision Sémantique & Locateurs Robustes [NEW]
+
+Le serveur MCP a été amélioré pour fournir une "Vision Sémantique" à l'IA :
+- **Extraction des Rôles Aria** : Identifie les composants par leur fonction (button, link, heading) plutôt que par leur balise HTML.
+- **Accessible Names** : Capture le texte réel perçu par l'utilisateur (labels, placeholders).
+- **Playwright Locator Generator** : L'outil renvoie directement des suggestions de code comme `page.getByRole('button', { name: 'Login' })`, garantissant un code de test plus stable et lisible.
+
+## 3. Optimisations Temp-Réel & Diagnostic
+
+### Élimination du Cache [NEW]
+Pour éviter que les agents ne travaillent sur des données obsolètes (ex: un échec de test persistant en mémoire alors que le code a été corrigé), le cache CrewAI a été désactivé pour les outils de diagnostic :
+- `run_playwright_test`
+- `take_screenshot`
+- `inspect_page`
+- `get_console_logs`
+- `write_file`
+
+### Centralisation des Ressources (`/resources`) [NEW]
+Afin de séparer les actifs métier des résultats de tests temporaires :
+- **Entrées** : Les agents cherchent les maquettes et vidéos dans le dossier racine `/resources`.
+- **Sorties Agents** : Les captures d'écran demandées par les agents (`Analyst`, `Interviewer`) sont automatiquement redirigées vers `/resources` (via un chemin relatif `../resources/` géré par le client MCP).
+- **Isolation Playwright** : Les enregistrements liés à l'exécution technique des tests restent dans `automation/test-results/`.
+
+## 4. Workflow SDET Interactif & Vision-First
 
 Grâce à cette architecture, l'agent SDET ne code plus "à l'aveugle".
 
@@ -36,7 +59,7 @@ Grâce à cette architecture, l'agent SDET ne code plus "à l'aveugle".
 3.  **Codage** : L'agent génère le Page Object avec des sélecteurs vérifiés.
 4.  **Validation** : L'agent lance `run_playwright_test` pour confirmer.
 
-## 4. Démarrage Technique
+## 5. Démarrage Technique
 
 Le serveur est démarré automatiquement par le client Python (`src/tools/playwright_mcp.py`), mais peut être testé manuellement :
 

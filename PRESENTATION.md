@@ -126,8 +126,18 @@ Une fois que les agents ont fini, le script principal (`main.py`) prend le relai
     *   Il génère un rapport HTML et vidéo (si configuré).
 
 ---
-
-## 🏗️ Ce que le système FAIT pour vous
+ 
+ ## 🚀 NOUVEAUTÉ : Diagnostic Visuel & Auto-Correction
+ 
+ Le système a franchi une nouvelle étape vers l'autonomie totale grâce à la **Vision par IA** :
+ 
+ *   **Vision-First Debug** : En cas d'échec, le SDET ne se limite plus aux logs texte. Il capture un screenshot et utilise Gemini Vision pour "voir" l'erreur (ex: bouton masqué par une pop-up).
+ *   **Auto-Correction Intelligente** : Grâce à la désactivation du cache des outils, l'agent itère en temps réel sur le code jusqu'à la réussite complète du test.
+ *   **Analyse Vidéo** : Les enregistrements d'erreurs sont analysés temporellement pour comprendre les bugs de navigation complexes.
+ 
+ ---
+ 
+ ## 🏗️ Ce que le système FAIT pour vous
 
 | Tâche | Avant (Humain) | Après (QA Labo IA) |
 | :--- | :--- | :--- |

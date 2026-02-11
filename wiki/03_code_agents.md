@@ -26,118 +26,61 @@ load_dotenv() # Charge les variables du fichier .env (ex: GOOGLE_API_KEY)
 Ici, nous importons `ChatGoogleGenerativeAI`. C'est le connecteur qui permet à CrewAI de parler avec Google Gemini.
 `load_dotenv()` est crucial : il va chercher votre clé API sans qu'on ait besoin de l'écrire en dur dans le code (sécurité).
 
-### 2. Initialisation du LLM (Le Cerveau)
+### 2. Initialisation du LLM (Stratégie Hybride) [OPTIMISÉ]
+
+Nous utilisons désormais une stratégie hybride pour équilibrer puissance de raisonnement et rapidité/coût.
 
 ```python
-llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
-    verbose=True,
-    temperature=0.2,
-    google_api_key=os.getenv("GOOGLE_API_KEY")
+# Configuration LLM PRO (Raisonnement complexe)
+self.llm_pro = LLM(
+    model=f"google/{MODEL_PRO}",
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    max_rpm=MAX_RPM_PRO
+)
+
+# Configuration LLM FLASH (Exploration et Tâches simples)
+self.llm_flash = LLM(
+    model=f"google/{MODEL_FLASH}",
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    max_rpm=MAX_RPM_FLASH
 )
 ```
 
-*   **`model="gemini-1.5-flash"`** : Nous utilisons la version "Flash" car elle est rapide et efficace pour des tâches logiques.
-*   **`temperature=0.2`** : Très important !
-    *   Une température proche de 0 (0.2) rend le modèle **déterministe** et **précis**.
-    *   Une température proche de 1 (0.8) rend le modèle **créatif** et **aléatoire**.
-    *   Pour du code et de la QA, on veut de la précision, donc 0.2 est idéal.
+*   **Gemini Pro (`MODEL_PRO`)** : Réservé aux tâches critiques nécessitant une logique fine (Designer, SDET, Superviseur).
+*   **Gemini Flash (`MODEL_FLASH`)** : Utilisé pour les tâches à haut volume ou exploratoires (Analyste, Dialogue, Intégration).
+*   **`max_rpm`** : Contrôle strict du débit pour éviter les erreurs `429 (Quota Exceeded)`.
 
 ### 3. La Classe `LaboQaAgents`
 
-Nous avons regroupé nos agents dans une classe pour pouvoir les instancier facilement.
-
-#### L'Analyste (Requirement Agent)
+#### L'Analyste (Requirement Specialist) [OPTIMISÉ]
 
 ```python
 def analyst_agent(self):
     return Agent(
-        role='Analyste QA (Requirement Agent)',
-        goal='Décortiquer les User Stories...',
+        role='Analyste QA (Requirement Specialist)',
         ...
+        llm=self.llm_flash,
+        tools=[self.query_tool, VisionResourceTool(), VideoResourceTool(), ListFilesTool(), HumanInputTool()]
     )
 ```
 
-#### Les Interviewers (Specialized Validation Agents) [NEW]
+*   **Discovery Visuelle Ciblée [NEW]** : L'agent possède désormais l'outil `HumanInputTool` (via `ask_human`). 
+*   **Protocole Interactif** : Au lieu de scanner tout le dossier `resources/`, il demande à l'utilisateur de choisir un sous-dossier spécifique (ex: `resources/SCRUM-326`). Cela réduit drastiquement la consommation de tokens Vision.
 
-Nous avons introduit deux agents spécialisés pour la validation interactive :
+#### Les Interviewers (Specialized Validation Agents)
 
-1.  **Requirement Interviewer** : 
-    - **Rôle** : Expert en Analyse de Besoins.
-    - **Mission** : Valider les règles de gestion point par point avec l'utilisateur.
-    - **Outils** : `ask_human`, `query_knowledge`, `update_knowledge`.
-2.  **Design Interviewer** :
-    - **Rôle** : Validateur de Design & JDD.
-    - **Mission** : Valider les scénarios Gherkin et les Examples. Applique la **Boucle de Sécurité** pour le "GO" final.
-    - **Outils** : `ask_human`, `query_knowledge`, `update_knowledge`.
-
-> [!IMPORTANT]
-> Ces agents sont les seuls à interagir directement avec l'utilisateur via le terminal.
+1.  **Requirement Interviewer** : Expert en Analyse de Besoins. Valide les règles point par point.
+2.  **Design Interviewer** : Validateur de Design & JDD. Applique la **Boucle de Sécurité** pour le "GO" final.
 
 #### Le Designer (BDD Specialist)
-
-```python
-def designer_agent(self):
-    return Agent(
-        role='Designer de Tests (BDD Specialist)',
-        ...
-        backstory="""Vous êtes un spécialiste du BDD..."""
-    )
-```
-*   **Spécificité** : Son rôle est centré sur le **Gherkin**. Le backstory mentionne explicitement "Given/When/Then" et "lisible par le métier". Cela force le modèle à produire ce format strict.
+*   **LLM** : Utilise le modèle **Pro** pour garantir des scénarios Gherkin complexes et sans fautes de syntaxe.
 
 #### Le SDET (Automation Agent)
-
-```python
-def sdet_agent(self):
-    return Agent(
-        role='Ingénieur SDET (Automation Agent)',
-        ...
-        backstory="""...Vous suivez strictement le pattern Page Object Model..."""
-    )
-```
-*   **SDET (Software Development Engineer in Test)** : C'est un développeur logiciel qui est spécialisé dans le test. Contrairement à un testeur manuel, il écrit du code pour tester le code.
-*   **Point Critique** : Le prompt insiste sur le **Page Object Model (POM)**. Sans cette instruction dans le backstory, le modèle pourrait générer des scripts simples et "sales" (tout dans un seul fichier). Ici, on lui impose une architecture logicielle propre dès sa définition.
-
-#### Le SDET Interactif (State-Aware) [NEW]
-
-Depuis la mise à jour "Interactive Mode", cet agent dispose d'une capacité unique : **la Génération de Code Consciente de l'État (State-Aware Code Generation)**.
-
-*   **Problème** : Comment écrire le Page Object d'une page accessible *seulement après login* (ex: Dashboard) sans deviner les sélecteurs ?
-*   **Solution** : L'outil `explore_page_with_actions`.
-*   **Fonctionnement** :
-    1.  L'agent reçoit l'ordre de coder la page Dashboard.
-    2.  Il utilise l'outil pour **exécuter réellement** le login (naviguer vers `/login`, remplir user/pass, cliquer).
-    3.  L'outil lui renvoie le **DOM réel** de la page d'arrivée.
-    4.  L'agent génère alors les sélecteurs parfaits basés sur la réalité, pas sur des suppositions.
+*   **Diagnostic Visuel Assisté par IA** : Utilise `analyze_resource_image` et `explore_page_with_actions` pour confronter le code au rendu réel.
+*   **LLM** : Utilise le modèle **Pro** pour la génération de code TypeScript robuste.
 
 #### Le Superviseur (QA Lead)
-
-```python
-def supervisor_agent(self):
-    return Agent(
-        role='Superviseur (QA Lead)',
-        goal='Assurer la qualité globale des livrables...',
-        backstory="""Vous êtes le Lead QA. Vous avez l'œil pour les détails...""",
-        verbose=True,
-        allow_delegation=True, # Notez la différence ici !
-        llm=self.llm
-    )
-```
-*   **Delegation** : C'est le seul agent avec `allow_delegation=True`. Cela signifie que s'il trouve le travail mal fait, il peut demander à un autre agent (ex: le SDET ou le Designer) de corriger sa copie.
+*   **Delegation** : Seul agent avec `allow_delegation=True`, lui permettant de retourner une tâche à un agent si la qualité n'est pas au rendez-vous.
 
 #### L'Agent d'Intégration (Jira/Xray Connector)
-
-```python
-def integration_agent(self):
-    return Agent(
-        role='Agent d\'Intégration (Jira/Xray Connector)',
-        goal='Gérer toutes les interactions avec Jira et Xray.',
-        backstory="""Vous êtes responsable de la communication avec les outils externes...""",
-        verbose=True,
-        allow_delegation=False,
-        llm=self.llm,
-        tools=[JiraIssueTool(), XrayImportTool()]
-    )
-```
-*   **Centralisation** : Cet agent est le seul à posséder les `tools` externes. Cela permet de séparer la logique de métier (Analyse, Design, Code) de la logique technique d'API (Jira, Xray).
+*   **LLM** : Utilise **Flash** car le parsing JSON des APIs ne nécessite pas de raisonnement complexe.

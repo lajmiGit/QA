@@ -1,6 +1,16 @@
 from pydantic import BaseModel, Field
 from typing import List
 
+class RuleInventory(BaseModel):
+    rules: List[str] = Field(..., description="List of validated business rules")
+    missing_data: List[str] = Field(..., description="List of missing information or questions for the user")
+    critical_selectors: List[str] = Field(..., description="List of important UI selectors identified")
+
+class GherkinDesign(BaseModel):
+    feature_name: str = Field(..., description="Name of the feature")
+    gherkin_content: str = Field(..., description="The complete Gherkin feature file content")
+    test_data_examples: List[dict] = Field(..., description="List of test data examples (JDD)")
+
 class GeneratedFile(BaseModel):
     file_path: str = Field(..., description="Relative path of the file (e.g., 'tests/specs/basket.spec.ts')")
     content: str = Field(..., description="Complete content of the file")

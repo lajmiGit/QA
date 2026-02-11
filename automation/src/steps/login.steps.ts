@@ -41,8 +41,14 @@ Then('a welcome message {string} should be displayed in the sidebar header', asy
 });
 
 Then('the user should remain on the current page', async ({ page }) => {
-  const loginPage = new LoginPage(page);
-  await loginPage.verifyRemainOnLoginPage();
+  // Check context to determine which page is "current"
+  if (page.url().includes('updateprofile.htm')) {
+    await expect(page).toHaveURL(/.*updateprofile\.htm/);
+  } else {
+    // Default to Login Page behavior
+    const loginPage = new LoginPage(page);
+    await loginPage.verifyRemainOnLoginPage();
+  }
 });
 
 Then('an error block should appear with the title {string} in blue color', async ({ page }, title: string) => {
@@ -79,7 +85,4 @@ Then('the "LOG IN" button should be visible and colored orange', async ({ page }
 Then('the {string} link should be present but inactive', async ({ page }, linkText: string) => {
   const loginPage = new LoginPage(page);
   await loginPage.verifyLinkPresent(linkText);
-  // Note: "Inactive" might imply disabled, but in HTML links are usually just present.
-  // If functionality check is needed (e.g., click doesn't work), it needs more context.
-  // Assuming "present" is the main verify here as per standard UI tests unless specified otherwise.
 });

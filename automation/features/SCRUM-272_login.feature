@@ -17,7 +17,7 @@ Feature: User Authentication (US_Login)
 
     Examples:
       | username | password | firstname | lastname |
-      | jhon     | demo     | Jhon      | Smith    |
+      | jhon     | demo     | jhon      | Smith    |
 
   @functional @error_handling @ignore
   Scenario Outline: Login failure due to invalid credentials

@@ -196,9 +196,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 return { content: [{ type: "text", text: `Directory not found: ${directory}` }] };
             }
 
-            const files = fs.readdirSync(fullPath, { recursive: true }).map(f => f.toString());
+            const files = fs.readdirSync(fullPath, { recursive: true }).map(f => {
+                const filePath = path.join(fullPath, f.toString());
+                const stats = fs.statSync(filePath);
+                return {
+                    name: f.toString(),
+                    mtime: stats.mtimeMs,
+                    size: stats.size
+                };
+            });
             return {
-                content: [{ type: "text", text: files.join('\n') }]
+                content: [{ type: "text", text: JSON.stringify(files, null, 2) }]
             };
         }
 
@@ -221,19 +229,45 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (name === "inspect_page") {
             const { url } = args as { url: string };
             const structure = await withPage(url, async (page) => {
-                // Determine interactive elements
+                // Determine interactive elements with rich metadata
                 return await page.evaluate(() => {
-                    const elements = document.querySelectorAll('button, input, a, select, [role="button"]');
-                    return Array.from(elements).map(el => {
-                        return {
-                            tagName: el.tagName,
-                            text: el.innerText.substring(0, 50),
-                            id: el.id,
-                            class: el.className,
-                            placeholder: (el as any).placeholder,
-                            href: (el as any).href
-                        };
-                    });
+                    const elements = document.querySelectorAll('button, input, a, select, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="tab"], h1, h2, h3');
+
+                    return Array.from(elements)
+                        .filter(el => {
+                            const style = window.getComputedStyle(el);
+                            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+                        })
+                        .map(el => {
+                            const htmlEl = el as HTMLElement;
+
+                            // Extract Aria Info
+                            const role = el.getAttribute('role') || el.tagName.toLowerCase();
+                            const ariaName = el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || htmlEl.innerText || (el as any).placeholder || (el as any).value || '';
+
+                            // Generate Suggested Playwright Locator
+                            let suggestedLocator = '';
+                            const cleanName = ariaName.trim().replace(/\n/g, ' ').substring(0, 50);
+
+                            if (['button', 'link', 'checkbox', 'radio', 'tab'].includes(role) || ['BUTTON', 'A'].includes(el.tagName)) {
+                                const targetRole = (el.tagName === 'A') ? 'link' : (el.tagName === 'BUTTON' ? 'button' : role);
+                                suggestedLocator = `page.getByRole('${targetRole}', { name: '${cleanName}' })`;
+                            } else if (el.tagName === 'INPUT' && (el as any).placeholder) {
+                                suggestedLocator = `page.getByPlaceholder('${(el as any).placeholder}')`;
+                            } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                                suggestedLocator = `page.getByLabel('${cleanName}')`;
+                            }
+
+                            return {
+                                tagName: el.tagName,
+                                role: role,
+                                name: cleanName,
+                                id: el.id,
+                                class: el.className,
+                                suggestedLocator: suggestedLocator,
+                                isVisible: true
+                            };
+                        });
                 });
             });
 
@@ -300,17 +334,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 await page.screenshot({ path: screenshotPath, fullPage: true });
 
                 const structure = await page.evaluate(() => {
-                    const elements = document.querySelectorAll('button, input, a, select, [role="button"], h1, h2, h3, .title, .error');
-                    return Array.from(elements).map(el => {
-                        return {
-                            tagName: el.tagName,
-                            text: (el as HTMLElement).innerText ? (el as HTMLElement).innerText.substring(0, 100) : '',
-                            id: el.id,
-                            class: el.className,
-                            placeholder: (el as any).placeholder || '',
-                            href: (el as any).href || ''
-                        };
-                    });
+                    const elements = document.querySelectorAll('button, input, a, select, [role="button"], [role="link"], h1, h2, h3, .title, .error');
+                    return Array.from(elements)
+                        .filter(el => {
+                            const style = window.getComputedStyle(el);
+                            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+                        })
+                        .map(el => {
+                            const htmlEl = el as HTMLElement;
+                            const role = el.getAttribute('role') || el.tagName.toLowerCase();
+                            const ariaName = el.getAttribute('aria-label') || htmlEl.innerText || (el as any).placeholder || '';
+
+                            return {
+                                tagName: el.tagName,
+                                role: role,
+                                name: ariaName.trim().substring(0, 100),
+                                id: el.id,
+                                class: el.className,
+                                suggestedLocator: `page.getByRole('${role}', { name: '${ariaName.trim().substring(0, 30)}' })`
+                            };
+                        });
                 });
 
                 result = { structure, screenshotPath, logs };

@@ -4,10 +4,17 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import Type, Any
 import google.generativeai as genai
+from src.config import MODEL_PRO, MODEL_FLASH
+from src.utils.resiliency import retry_gemini_api
+from src.utils.gemini_cache import context_manager # Import du manager de cache
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement
 load_dotenv()
+
+# Note: genai est configuré globalement dans main.py (via load_dotenv)
+if not os.getenv("GOOGLE_API_KEY"):
+    print("WARNING: GOOGLE_API_KEY non trouvée dans l'environnement.")
 
 class QueryKnowledgeInput(BaseModel):
     """Input for QueryKnowledgeTool."""
@@ -19,6 +26,9 @@ class QueryKnowledgeTool(BaseTool):
     args_schema: Type[BaseModel] = QueryKnowledgeInput
 
     def _run(self, question: str) -> str:
+        # Utilisation d'un modèle léger pour la lecture
+        model = genai.GenerativeModel(MODEL_FLASH)
+        
         brain_path = "project_brain.md"
         json_path = "knowledge_base.json"
         
@@ -33,31 +43,40 @@ class QueryKnowledgeTool(BaseTool):
         else:
             return "La mémoire du projet est actuellement vide."
 
-        # Configuration de l'IA pour la lecture sémantique
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            return "Erreur : GOOGLE_API_KEY non trouvée pour l'interrogation sémantique."
+        cache_id = context_manager.get_cache_id_for_model(MODEL_FLASH)
         
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        Tu es le 'Cerveau du Projet', une mémoire vivante et interactive pour une équipe QA. 
-        Ton rôle est de répondre de manière précise à la question d'un agent en te basant sur le document de référence ci-dessous.
-        
-        CONTENU DE LA MÉMOIRE DU PROJET (Project Brain) :
+        # CONSTRUCTION DU PROMPT HYBRIDE
+        # 1. Le Brain (Dynamique) est toujours passé dans le prompt
+        brain_prompt_part = f"""
+        CONTENU DE LA MÉMOIRE VIVANTE (Project Brain) :
         ---
         {content}
         ---
+        """
+        
+        if cache_id:
+            # OPTIMISATION : Utilisation du cache serveur pour le Wiki
+            print(f"💎 [HYBRID CACHE] Wiki via {cache_id} + Brain via Prompt")
+            try:
+                # Création d'un modèle lié au cache
+                model_with_cache = genai.GenerativeModel.from_cached_content(cached_content=cache_id)
+                response = model_with_cache.generate_content(
+                    f"{brain_prompt_part}\n\nQUESTION AGENT : {question}"
+                )
+                return response.text
+            except Exception as e:
+                print(f"⚠️ Échec du cache {cache_id}, repli sur le mode standard : {str(e)}")
+        
+        # MODE STANDARD (Fallback complet si pas de cache)
+        prompt = f"""
+        {brain_prompt_part}
         
         QUESTION DE L'AGENT :
         "{question}"
         
         INSTRUCTIONS :
-        1. Sois factuel et cite scrupuleusement les règles ou décisions présentes dans la mémoire.
-        2. Si la question porte sur un élément manquant, indique-le clairement mais essaie de fournir le contexte le plus proche.
-        3. Ne réinvente pas de règles ; tu es le gardien de ce qui a été validé.
-        4. Si tu lis de l'ancien JSON, traduis-le mentalement en informations structurées pour ta réponse.
+        1. Sois factuel. Utilise le Project Brain ci-dessus et tes connaissances du projet.
+        2. Réponds précisément à la question.
         
         RÉPONSE DU CERVEAU :
         """
@@ -80,20 +99,15 @@ class UpdateKnowledgeTool(BaseTool):
     args_schema: Type[BaseModel] = UpdateKnowledgeInput
 
     def _run(self, update_type: str, content: Any, context: str) -> str:
+        # Utilisation d'un modèle puissant pour la synthèse
+        model = genai.GenerativeModel(MODEL_PRO)
+        
         brain_path = "project_brain.md"
         
         current_brain = ""
         if os.path.exists(brain_path):
             with open(brain_path, 'r', encoding='utf-8') as f:
                 current_brain = f.read()
-        
-        # Configuration de l'IA pour la rédaction/synthèse de mémoire
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            return "Erreur : GOOGLE_API_KEY non trouvée pour la mise à jour sémantique."
-        
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
         Tu es l'Editeur du 'Cerveau du Projet'. Ta mission est de maintenir un document Markdown propre, structuré et synthétique qui sert de mémoire à long terme pour l'équipe QA.

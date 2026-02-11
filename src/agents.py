@@ -1,5 +1,6 @@
-from crewai import Agent
+from crewai import Agent, LLM
 import os
+from src.config import MODEL_PRO, MAX_RPM_PRO, MAX_RPM_FLASH, MODEL_FLASH, MAX_RETRIES, TIMEOUT
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement
@@ -11,10 +12,25 @@ from src.tools.playwright_mcp import WriteFileTool, ReadFileTool, RunPlaywrightT
 from src.tools.human_tool import HumanInputTool
 from src.tools.knowledge_tool import QueryKnowledgeTool, UpdateKnowledgeTool
 from src.tools.vision_tool import VisionResourceTool
+from src.tools.video_tool import VideoResourceTool
 
 class LaboQaAgents:
     def __init__(self):
-        self.llm = "gemini/gemini-3-pro-preview"
+        # Configuration LLM PRO (Raisonnement complexe)
+        # Note: CrewAI utilise le format "provider/model"
+        self.llm_pro = LLM(
+            model=f"google/{MODEL_PRO}",
+            api_key=os.getenv("GOOGLE_API_KEY"),
+            max_rpm=MAX_RPM_PRO
+        )
+        
+        # Configuration LLM FLASH (Exploration et Tâches simples)
+        self.llm_flash = LLM(
+            model=f"google/{MODEL_FLASH}",
+            api_key=os.getenv("GOOGLE_API_KEY"),
+            max_rpm=MAX_RPM_FLASH
+        )
+        
         self.query_tool = QueryKnowledgeTool()
         self.update_tool = UpdateKnowledgeTool()
 
@@ -24,13 +40,13 @@ class LaboQaAgents:
             goal='Analyser la User Story, explorer les ressources visuelles et produire un inventaire des règles.',
             backstory="""Vous êtes un expert en analyse QA. Votre rôle est d'extraire les règles métier.
             VOTRE RÈGLE D'OR : "Knowledge First". Avant toute chose, vous DEVEZ interroger le 'Cerveau du Projet' via `query_knowledge` en posant une question en langage naturel sur ce qui est déjà connu (ex: quelles sont les règles d'authentification ?).
-            Vous EXPLOREZ systématiquement le dossier 'docs/resources/' pour trouver des maquettes liées à la US.
-            Vous utilisez l'outil 'analyze_resource_image' pour m'expliquer ce que vous voyez sur les maquettes.
+            Vous EXPLOREZ systématiquement le dossier 'resources/' à la racine pour trouver des maquettes et des vidéos liées à la US.
+            Vous utilisez les outils 'analyze_resource_image' et 'analyze_scenario_video' pour m'expliquer ce que vous voyez.
             Vous ne parlez pas directement à l'utilisateur ; vous produisez un brouillon technique consolidé avec l'existant.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm,
-            tools=[self.query_tool, VisionResourceTool(), ListFilesTool()]
+            llm=self.llm_flash, # Passage en Flash pour économiser le quota Pro
+            tools=[self.query_tool, VisionResourceTool(), VideoResourceTool(), ListFilesTool(), HumanInputTool()]
         )
 
     def designer_agent(self):
@@ -44,7 +60,7 @@ class LaboQaAgents:
             Vous produisez des brouillons techniques pour le Validateur de Design.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm,
+            llm=self.llm_pro, # Garde Pro pour la logique Gherkin fine
             tools=[self.query_tool]
         )
 
@@ -58,8 +74,8 @@ class LaboQaAgents:
             Vous vulgarisez la technique pour l'utilisateur.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm,
-            tools=[HumanInputTool(), self.query_tool, self.update_tool]
+            llm=self.llm_flash, # Flash suffit pour le dialogue de validation
+            tools=[HumanInputTool(), self.query_tool, self.update_tool, VisionResourceTool(), VideoResourceTool()]
         )
 
     def design_interviewer_agent(self):
@@ -74,24 +90,25 @@ class LaboQaAgents:
             Il est strictement interdit de terminer votre mission sans cette autorisation finale.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm,
-            tools=[HumanInputTool(), self.query_tool, self.update_tool]
+            llm=self.llm_flash, # Flash suffit pour le dialogue de validation
+            tools=[HumanInputTool(), self.query_tool, self.update_tool, VisionResourceTool(), VideoResourceTool()]
         )
 
     def sdet_agent(self):
         return Agent(
             role='Ingénieur SDET (Automation Agent)',
             goal='Transformer les scénarios Gherkin en code Playwright (TypeScript) robuste utilisant le pattern Page Object Model (POM).',
-            backstory="""Vous êtes un ingénieur expert en automatisation avec Playwright.
+            backstory="""Vous êtes un ingénieur expert en automatisation avec Playwright et expert en diagnostic visuel assisté par IA.
             VOTRE RÈGLE D'OR : "Audit First, Code Second".
             Avant de créer un fichier, vous DEVEZ vérifier s'il existe déjà une page ou un test similaire.
-            Vous préférez la MODIFICATION et le REFACTORING de fichiers existants à la création de doublons.
-            Vous utilisez strictement le pattern Page Object Model (POM) et évitez la duplication de sélecteurs."""
+            En cas d'échec de test, vous utilisez SYSTÉMATIQUEMENT vos capacités de VISION et VIDÉO pour confronter le code au rendu réel de la page.
+            Vous savez que sur Firefox/Webkit, certains éléments comme les dropdowns demandent parfois `toBeAttached()` plutôt que `toBeVisible()`.
+            Vous préférez la MODIFICATION et le REFACTORING de fichiers existants à la création de doublons."""
 ,
             verbose=True,
             allow_delegation=False,
-            llm=self.llm,
-            tools=[WriteFileTool(), ReadFileTool(), RunPlaywrightTestTool(), ListFilesTool(), InspectPageTool(), TakeScreenshotTool(), GetConsoleLogsTool(), HumanInputTool(), ExplorePageTool()]
+            llm=self.llm_pro, # Garde Pro pour la génération de code critique
+            tools=[WriteFileTool(), ReadFileTool(), RunPlaywrightTestTool(), ListFilesTool(), InspectPageTool(), TakeScreenshotTool(), GetConsoleLogsTool(), HumanInputTool(), ExplorePageTool(), VisionResourceTool(), VideoResourceTool()]
         )
 
     def supervisor_agent(self):
@@ -102,7 +119,7 @@ class LaboQaAgents:
             Vous vérifiez que le code généré correspond bien aux scénarios Gherkin et que les scénarios couvrent bien les règles de gestion identifiées.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm
+            llm=self.llm_pro # Garde Pro pour la supervision haute fidélité
         )
 
     def integration_agent(self):
@@ -114,6 +131,6 @@ class LaboQaAgents:
             Vous assurez que la liaison entre les tickets et les tests est maintenue.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm,
+            llm=self.llm_flash, # Flash suffit pour le parsing Jira/Xray JSON
             tools=[JiraIssueTool(), XrayImportTool()]
         )

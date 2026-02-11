@@ -9,9 +9,12 @@ from src.tools.xray_tool import XrayImportTool
 import sys
 import time
 from dotenv import load_dotenv
+from src.utils.gemini_cache import context_manager
 
 # Charger les variables d'environnement
+# Charger les variables d'environnement
 load_dotenv()
+os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
 class Logger(object):
     def __init__(self, filename="output/execution.log"):
@@ -40,6 +43,9 @@ def run():
     parser.add_argument("--issue", type=str, help="Clé du ticket Jira (ex: QA-123)")
     parser.add_argument("--project", type=str, help="Clé du projet Jira/Xray (ex: SCRUM)")
     args = parser.parse_args()
+
+    # 0.1 Initialisation du Cache Global (Context Caching Double)
+    context_manager.initialize_all_caches()
 
     print("\n## Bienvenue au Labo QA IA - Initialisation du Crew ##")
     print("-----------------------------------------------------")
@@ -70,7 +76,26 @@ def run():
         tsk_analysis_draft = tasks_factory.analysis_task(analyst, user_story_context=tsk_fetch)
     else:
         # Valeur par défaut pour test local (Parabank)
-        input_data = """ ... """ # (rest of the prompt remains same in spirit)
+        input_data = """
+        Titre: SCRUM-273 Transfer Funds Feature
+        
+        Description:
+        En tant qu'utilisateur connecté, je veux pouvoir transférer des fonds entre mes comptes.
+
+        Critères d'Acceptation:
+        1. Le lien "Transfer Funds" doit être accessible depuis le menu de gauche.
+        2. Le formulaire de transfert (/parabank/transfer.htm) doit afficher:
+           - Un champ Montant ($)
+           - Une liste déroulante "From Account"
+           - Une liste déroulante "To Account"
+           - Un bouton "Transfer"
+        3. Après validation, un message "Transfer Complete!" doit s'afficher.
+        4. Le système doit afficher le montant transféré dans le message de confirmation.
+
+        Note Technique:
+        - L'utilisateur doit être connecté (john/demo).
+        - URL cible: /parabank/transfer.htm
+        """
         print("Option sélectionnée : Utilisation de la User Story d'exemple Parabank")
         tsk_analysis_draft = tasks_factory.analysis_task(analyst, direct_input=input_data)
 
@@ -103,8 +128,8 @@ def run():
 
     # Ajouter une pause entre chaque tâche pour éviter le quota API Google
     def wait_next_task(output):
-        print("\n[PAUSE] Attente de 30 secondes pour préserver le quota API... \n")
-        time.sleep(30)
+        print("\n[PAUSE] Attente de 20 secondes pour préserver le quota API (Test Mode)... \n")
+        time.sleep(20)
 
     for task in active_tasks:
         task.callback = wait_next_task
@@ -119,7 +144,11 @@ def run():
 
     # 5. Lancement
     print("\nLancement du cycle de travail autonome...\n")
-    result = crew.kickoff()
+    try:
+        result = crew.kickoff()
+    finally:
+        # Nettoyage automatique du cache à la fin, même en cas de crash
+        context_manager.cleanup()
     
     # --- PHASE AUTOMATION : Gérée par le SDET autonome via MCP ---
     print("\n\n" + "="*50)

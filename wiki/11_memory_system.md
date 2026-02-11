@@ -2,27 +2,34 @@
 
 Le Labo QA IA possède une mémoire persistante qui lui permet d'apprendre de chaque exécution et de proposer des suggestions pertinentes basées sur l'historique du projet.
 
-## 1. La `knowledge_base.json`
+## 1. Le "Cerveau" du Projet (`project_brain.md`)
 
-C'est le fichier physique où sont stockées les connaissances. Il est structuré par clés :
-- `validated_rules` : Liste des règles métier déjà approuvées.
-- `preferred_jdd` : Valeurs par défaut pour les tests (ex: comptes de test, URLs spécifiques).
-- `project_conventions` : Nommage, patterns de code préférés.
+C'est le document dynamique qui contient la mémoire vive du projet. Il est structuré pour être lu rapidement par les agents et contient :
+- **Registre des Ressources** : Historique des fichiers analysés et leurs `mtime`.
+- **Règles Validées** : Directives métier extraites des User Stories passées.
+- **Historique des Choix** : URLs, sélecteurs persistants, etc.
 
-## 2. Les Outils de Connaissance
+## 2. Gemini Context Caching (Double Cache) [OPTIMISÉ]
 
-### `query_knowledge`
-Utilisé par les agents au début d'une tâche pour consulter l'historique. 
-- *Exemple* : Le Designer consulte les `preferred_jdd` pour proposer le même utilisateur "john" que lors des tests précédents.
+Pour réduire drastiquement la consommation de tokens et améliorer la latence, nous utilisons le **Context Caching** natif de Gemini.
 
-### `update_knowledge`
-Utilisé par les agents à la fin d'une validation réussie pour mémoriser les nouveaux éléments.
-- *Condition* : La mise à jour n'a lieu qu'APRÈS avoir reçu le "GO" final de l'utilisateur.
+- **Double Cache** : Nous créons deux caches distincts sur les serveurs de Google :
+    - Un cache pour le modèle **Pro** (Raisonnement).
+    - Un cache pour le modèle **Flash** (Exploration).
+- **Contenu du Cache** : Seul le **Wiki** technique (statique) est mis en cache. Cela donne aux agents une expertise immédiate sur le framework sans consommer de tokens d'entrée à chaque appel.
+- **TTL (Time To Live)** : Les caches sont configurés avec une durée de vie de 1 heure et sont systématiquement nettoyés en fin d'exécution (`cleanup`).
 
-## 3. Avantages du Système
-1.  **Consistance** : Les tests gardent la même structure et les mêmes données à travers les versions.
-2.  **Productivité** : Moins de saisie pour l'utilisateur, car le système propose des valeurs "par défaut" déjà validées.
-3.  **Apprentissage** : Plus le labo est utilisé, plus il devient autonome et pertinent dans ses propositions.
+## 3. Stratégie de Savoir Hybride (Hybrid Knowledge)
 
-> [!TIP]
-> Vous pouvez consulter ou éditer manuellement le fichier `knowledge_base.json` à la racine pour "pré-charger" des connaissances ou corriger une mémorisation.
+La connaissance est injectée aux agents de deux manières complémentaires :
+
+1.  **Wiki (Statique / Cache)** : L'expertise technique du projet est dans le cache serveur. Coût token = **0** à l'exécution.
+2.  **Cerveau (Dynamique / Prompt)** : Le fichier `project_brain.md` est lu en temps réel et injecté directement dans le prompt. Cela garantit que les changements récents (nouvelle règle validée il y a 5 minutes) sont immédiatement pris en compte.
+
+## 4. Outils de Connaissance
+
+- **`query_knowledge`** : Interroge le "Cerveau" et le "Cache" pour répondre à une question métier.
+- **`update_knowledge`** : Met à jour la section pertinente du `project_brain.md` (Registre ou Règles).
+
+> [!NOTE]
+> Le "Clean Start" au démarrage de `main.py` assure que les caches sont toujours synchronisés avec la dernière version du Wiki.

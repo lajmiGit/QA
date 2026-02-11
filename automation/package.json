@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start:mcp": "tsx src/mcp-server.ts"
+    "bddgen": "bddgen",
+    "start:mcp": "tsx src/mcp-server.ts",
+    "test": "npx bddgen && npx playwright test"
   },
   "keywords": [],
   "author": "",

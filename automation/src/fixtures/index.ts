@@ -1,15 +1,24 @@
 import { test as base } from 'playwright-bdd';
-
-/**
- * Modern BDD Fixtures - Professional Architecture
- * This file serves as the dependency injection root.
- * Future Page Objects will be extended here.
- */
+import { LoginPage } from '../pages/login.page';
+import { UpdateProfilePage } from '../pages/updateProfile.page';
+import { RegistrationPage } from '../pages/registration.page';
 
 type MyFixtures = {
-    // Add page objects here -> e.g., loginPage: LoginPage;
+    loginPage: LoginPage;
+    updateProfilePage: UpdateProfilePage;
+    registrationPage: RegistrationPage;
 };
 
-export const test = base.extend<MyFixtures>({});
+export const test = base.extend<MyFixtures>({
+    loginPage: async ({ page }, use) => {
+        await use(new LoginPage(page));
+    },
+    updateProfilePage: async ({ page }, use) => {
+        await use(new UpdateProfilePage(page));
+    },
+    registrationPage: async ({ page }, use) => {
+        await use(new RegistrationPage(page));
+    },
+});
 
 export { expect } from '@playwright/test';

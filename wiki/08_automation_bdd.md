@@ -18,7 +18,9 @@ Le dossier `automation/` est un projet Node.js/TypeScript autonome.
 -   **`src/pages/`** : Contient les *Page Objects* (`.page.ts`). Encapsule la logique d'interaction avec l'UI (sélecteurs, actions).
 -   **`src/fixtures/`** : Contient les fixtures Playwright (`index.ts`) pour l'injection de dépendances (Pages, Actors).
 -   **`.features-gen/`** : Dossier généré automatiquement par `bddgen`. Il contient les tests techniques Playwright (`.spec.js`) dérivés des features. **Ne pas modifier manuellement.**
--   **`playwright.config.ts`** : Configuration globale (Base URL, Navigateurs, Timeouts).
+-   **`playwright.config.ts`** : Configuration globale.
+    -   **`slowMo: 500`** : Un délai de 500ms est ajouté entre chaque action pour faciliter le suivi visuel.
+    -   **`retries: 2`** : Les tests instables sont relancés automatiquement.
 
 ## 3. Workflow BDD
 
@@ -36,6 +38,9 @@ Effet : Lit `features/*.feature` et `steps/*.ts`, puis génère des tests exécu
 ### C. Exécution
 Les tests sont lancés via Playwright standard.
 Commande : `npx playwright test`
+
+### D. Diagnostic Visuel & Mémanence
+En cas d'échec, le système utilise Gemini Vision pour analyser l'écran (screenshot/vidéo). Des délais de sécurité (`await this.page.waitForTimeout(3000)`) sont intégrés dans les Page Objects lors de la récupération des messages d'erreur pour garantir que le DOM est stabilisé avant la lecture.
 
 ## 4. Maintenance
 
