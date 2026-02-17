@@ -2,6 +2,7 @@ import { createBdd } from 'playwright-bdd';
 import { test } from '../fixtures';
 import { expect } from '@playwright/test';
 import { RegistrationPage } from '../pages/registration.page';
+import { DataFactory } from '../utils/DataFactory';
 import { faker } from '@faker-js/faker';
 
 const { Given, When, Then } = createBdd(test);
@@ -26,13 +27,9 @@ Given('I fill the registration form with the following details:', async ({ page 
     const registrationPage = new RegistrationPage(page);
     const data = dataTable.rowsHash();
     
-    // Extract first and last name for better username generation
-    const firstName = data['First Name'];
-    const lastName = data['Last Name'];
-    
-    // Pour éviter les conflits d'unicité, on utilise faker pour le username
+    // Pour éviter les conflits d'unicité, on utilise la DataFactory
     if (data['Username'] && data['Username'].includes('user_auto')) {
-        data['Username'] = faker.internet.username({ firstName, lastName });
+        data['Username'] = await DataFactory.generateUniqueUsername(data['First Name'], data['Last Name']);
     }
     
     await registrationPage.fillForm(data);
