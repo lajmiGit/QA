@@ -7,17 +7,17 @@ class LaboQaTasks:
     def analysis_task(self, agent, user_story_context=None, direct_input=None):
         description = dedent("""
             ÉTAPE 0 : CONSULTATION DU CERVEAU (OBLIGATOIRE)
-            - Interrogez le 'Cerveau du Projet' via `query_knowledge` en posant une question précise en langage naturel sur les règles déjà validées ou l'historique de cette fonctionnalité. Ne redéfinissez pas ce qui est déjà acté.
+            - Interrogez le 'Cerveau du Projet' via \`query_knowledge\` en posant une question précise en langage naturel sur les règles déjà validées ou l'historique de cette fonctionnalité. Ne redéfinissez pas ce qui est déjà acté.
             
             ÉTAPE CRITIQUE : DISCOVERY VISUELLE CIBLÉE (OBLIGATOIRE)
             1. LISTE DES RESSOURCES : Appelez l'outil 'list_files' sur le dossier 'resources/' pour voir les dossiers disponibles (ex: SCRUM-326, SCRUM-189).
             2. CHOIX DE L'UTILISATEUR : Appelez l'outil 'ask_human' en présentant la liste des dossiers trouvés et demandez : "Dans quel dossier spécifique (ex: resources/SCRUM-XXX) dois-je effectuer l'analyse visuelle pour ce ticket ?".
             3. ANALYSE SÉLECTIVE : Une fois le dossier confirmé (ex: 'resources/SCRUM-326'), listez les fichiers de CE DOSSIER UNIQUEMENT.
-            4. INTERROGATION DE LA MÉMOIRE : Consultez le 'Cerveau du Projet' via `query_knowledge` pour récupérer le "Registre des Ressources Analysées" pour ce ticket spécifique.
+            4. INTERROGATION DE LA MÉMOIRE : Consultez le 'Cerveau du Projet' via \`query_knowledge\` pour récupérer le "Registre des Ressources Analysées" pour ce ticket spécifique.
             5. LOGIQUE DE DÉCISION (PROTOCOLE DELTA) : 
-               - Comparez les `mtime` des fichiers du dossier choisi avec ceux en mémoire.
-               - Ne lancez 'analyze_resource_image' ou 'analyze_scenario_video' QUE pour les nouveaux fichiers ou ceux modifiés.
-            6. MISE À JOUR DU REGISTRE : En fin d'analyse, utilisez `update_knowledge` pour mettre à jour le Registre des Ressources.
+                - Comparez les \`mtime\` des fichiers du dossier choisi avec ceux en mémoire.
+                - Ne lancez 'analyze_resource_image' ou 'analyze_scenario_video' QUE pour les nouveaux fichiers ou ceux modifiés.
+            6. MISE À JOUR DU REGISTRE : En fin d'analyse, utilisez \`update_knowledge\` pour mettre à jour le Registre des Ressources.
             
             PHASE 2 : ANALYSE FONCTIONNELLE
             Une fois (et seulement une fois) que vous avez consolidé l'analyse de toutes les ressources (nouvelles et anciennes), extrayez toutes les NOUVELLES règles ou ajustements de la User Story.
@@ -49,23 +49,23 @@ class LaboQaTasks:
             description=dedent("""
                 Mener une interview de validation via le **PROTOCOLE DE COLLECTE SÉQUENTIELLE SILENCIEUSE** :
                 
-                1. **VISION GLOBALE** : Affichez d'abord le tableau Markdown complet des règles.
-                2. **COLLECTE POINT PAR POINT** : Posez une question précise via `ask_human` pour chaque ID.
+                1. **VISION GLOBALE** : Affichez d'abord le tableau Markdown complet des règles identifiées par l'Analyste.
+                2. **COLLECTE POINT PAR POINT** : Posez une question précise via \`ask_human\` pour chaque règle (ID).
                 3. **SILENCE IA (STRICT)** : Interdiction de commenter entre les questions. Soyez sériel.
-                4. **CONSOLIDATION** : Une synthèse finale après clôture.
+                4. **RÉCAPITULATION FINALE (OBLIGATOIRE)** : Une fois toutes les questions répondues, affichez un tableau final consolidé de TOUTES les règles validées. Demandez un "GO ANALYSE" final.
             """),
             agent=agent,
             context=[analysis_context],
-            expected_output="Analyse validée point par point sans interférences de l'IA."
+            expected_output="Analyse validée et présentée sous forme de tableau récapitulatif final."
         )
 
     def test_design_task(self, agent, interview_context):
         return Task(
             description=dedent(f"""
-                Concevoir les scénarios Gherkin (Scenario Outline).
+                Concevoir les scénarios Gherkin (Scenario Outline) basés sur l'analyse validée.
                 
                 **CONVENTION DE SYNTAXE DYNAMIQUE (OBLIGATOIRE)** :
-                Utilisez les placeholders : `<unique>`, `<email>`, `<adult_dob>`, `<future_date>`.
+                Utilisez les placeholders : \`<unique>\`, \`<email>\`, \`<adult_dob>\`, \`<future_date>\`.
                 Rédigez en anglais.
             """),
             agent=agent,
@@ -77,14 +77,15 @@ class LaboQaTasks:
     def interview_design_task(self, agent, design_context):
         return Task(
             description=dedent("""
-                Valider le Design Gherkin via le **PROTOCOLE DE COLLECTE SÉQUENTIELLE SILENCIEUSE** :
-                1. Affichez le Gherkin complet.
-                2. Posez des questions séquentielles sur la logique et les JDD.
-                3. Attendez le 'GO'.
+                Valider le Design Gherkin via le **PROTOCOLE DE VALIDATION VISUELLE** :
+                1. **PREVIEW SYSTEMATIQUE** : Affichez le fichier Gherkin complet dans un bloc de code Markdown.
+                2. **DETECTION DES EXAMPLES** : Présentez explicitement les tables de données (Examples) prévues.
+                3. **QUESTIONS SÉQUENTIELLES** : Posez des questions sur la logique si nécessaire.
+                4. **ATTENTE DU GO** : Vous ne pouvez pas terminer sans que l'utilisateur dise "GO DESIGN".
             """),
             agent=agent,
             context=[design_context],
-            expected_output="Design Gherkin validé efficacement point par point."
+            expected_output="Design Gherkin validé après présentation complète et explicite."
         )
 
     def code_generation_task(self, agent, design_context, xray_context, issue_key=None, base_url=None):
@@ -102,49 +103,48 @@ class LaboQaTasks:
                 
                 SOURCE DE VÉRITÉ STRICTE :
                 Tu ne reçois PAS tout l'historique de conversation (vidéos, analyses, etc.).
-                Tu reçois uniquement un objet `GherkinDesign` contenant :
+                Tu reçois uniquement un objet \`GherkinDesign\` contenant :
                 1. Le contenu Gherkin validé.
                 2. Les exemples de données de test.
                 
                 **MODE TASK-ONLY** :
-                - Ne cherche pas à "deviner" le contexte visuel passé. Si tu as besoin d'infos sur un sélecteur ou une règle, utilise `query_knowledge` pour interroger le "Cerveau du Projet".
-                - Si tu as besoin de voir la page actuelle, utilise `inspect_page` ou `explore_page_with_actions`.
+                - Ne cherche pas à "deviner" le contexte visuel passé. Si tu as besoin d'infos sur un sélecteur ou une règle, utilise \`query_knowledge\` pour interroger le "Cerveau du Projet".
+                - Si tu as besoin de voir la page actuelle, utilise \`inspect_page\` ou \`explore_page_with_actions\`.
                 
                 **RÈGLE D'IMMUTABILITÉ** : Il est strictement INTERDIT de modifier les scénarios Gherkin pour faire passer un test. Si un test échoue, vous devez corriger le CODE (Page Objects ou Steps) pour qu'il corresponde aux scénarios.
                 
                 ACTIONS ATTENDUES :
                 1.  **AUDIT DU CODE EXISTANT (OBLIGATOIRE)** :
-                    - Utilisez `list_files` sur `src/pages/`, `steps/` et `features/`.
-                    - **RÈGLE DE SÉCURITÉ TOKENS** : Ne JAMAIS appeler `list_files` sur la racine `.` ou `/` avec l'option récursive. Si vous devez explorer la structure, faites-le dossier par dossier.
-                    - Si des fichiers existent déjà pour cette fonctionnalité (ex: `login.page.ts`), utilisez `read_file` pour les analyser.
-                    - **RÈGLE ANTI-DUPLICATION** : Si un fichier existe, vous devez le METTRE À JOUR avec `write_file` plutôt que d'en créer un nouveau (exemple: ne créez pas `login_v2.page.ts`).
+                    - Utilisez \`list_files\` sur \`src/pages/\`, \`steps/\` et \`features/\`.
+                    - **RÈGLE DE SÉCURITÉ TOKENS** : Ne JAMAIS appeler \`list_files\` sur la racine \`.\` ou \`/\` avec l'option récursive. Si vous devez explorer la structure, faites-le dossier par dossier.
+                    - Si des fichiers existent déjà pour cette fonctionnalité (ex: \`login.page.ts\`), utilisez \`read_file\` pour les analyser.
+                    - **RÈGLE ANTI-DUPLICATION** : Si un fichier existe, vous devez le METTRE À JOUR avec \`write_file\` plutôt que d'en créer un nouveau (exemple: ne créez pas \`login_v2.page.ts\`).
                 
                 2.  **ARCHITECTURE BDD STRICTE (playwright-bdd)** :
-                    - Ce projet utilise `playwright-bdd`. Vous ne devez PAS créer de fichiers `.spec.ts` ou `.test.ts` manuellement.
+                    - Ce projet utilise \`playwright-bdd\`. Vous ne devez PAS créer de fichiers \`.spec.ts\` ou \`.test.ts\` manuellement.
                     - Structure cible :
-                    - Structure cible :
-                      - `features/{issue_key}_{{feature_name}}.feature` : Contient le Gherkin complet (@{{issue_key}} obligatoire).
-                      - `src/steps/{{feature_name}}.steps.ts` : Contient les `createBdd` et `Given/When/Then`.
-                        - EXEMPLE : `import {{ createBdd }} from 'playwright-bdd'; import {{ test }} from '../fixtures'; const {{ Given, When, Then }} = createBdd(test); ...`
-                      - `src/pages/{{feature_name}}.page.ts` : Contient la logique Page Object.
+                      - \`features/{issue_key}_{{feature_name}}.feature\` : Contient le Gherkin complet (@{{issue_key}} obligatoire).
+                      - \`src/steps/{{feature_name}}.steps.ts\` : Contient les \`createBdd\` et \`Given/When/Then\`.
+                        - EXEMPLE : \`import {{ createBdd }} from 'playwright-bdd'; import {{ test }} from '../fixtures'; const {{ Given, When, Then }} = createBdd(test); ...\`
+                      - \`src/pages/{{feature_name}}.page.ts\` : Contient la logique Page Object.
                 
                 3.  **EXPLORATION DE L'UI (VISION & ACTION)** :
-                    - Si de nouveaux éléments sont nécessaires (ex: Dashboard après login), utilisez `explore_page_with_actions` pour atteindre l'état désiré et inspecter le DOM.
-                    - Utilisez `inspect_page` pour les pages publiques.
-                    - En cas de doute technique, utilisez `ask_human`.
+                    - Si de nouveaux éléments sont nécessaires (ex: Dashboard après login), utilisez \`explore_page_with_actions\` pour atteindre l'état désiré et inspecter le DOM.
+                    - Utilisez \`inspect_page\` pour les pages publiques.
+                    - En cas de doute technique, utilisez \`ask_human\`.
                 
                 4.  **IMPLÉMENTATION & REFACTORING** :
                     - Injectez les nouveaux sélecteurs et méthodes dans les Page Objects (existant ou nouveau).
-                    - Implémentez les Step Definitions dans `steps/` (extension `.steps.ts`) en utilisant `createBdd` de `playwright-bdd`.
+                    - Implémentez les Step Definitions dans \`steps/\` (extension \`.steps.ts\`) en utilisant \`createBdd\` de \`playwright-bdd\`.
                     - **INTERDICTION** : Ne pas mettre de code de test (locators, assertions complexes) directement dans les steps. Appelez les méthodes du Page Object.
                 
                 5.  **BOUCLE D'AUTONOMIE & VALIDATION (PROTOCOLE RE-INSPECT)** :
-                    - Lancez le test avec `run_playwright_test`.
+                    - Lancez le test avec \`run_playwright_test\`.
                     - **ANALYSE DES ÉCHECS : SI LE TEST ÉCHOUE, VOUS DEVEZ PROCÉDER COMME SUIT (STRICT) :**
-                        a. **RE-NAVIGATION** : Utilisez `explore_page_with_actions` pour atteindre exactement l'état où le test a échoué.
-                        b. **INSPECTION TECHNIQUE SÉMANTIQUE** : Appelez `inspect_page` sur l'URL actuelle pour obtenir les nouveaux locateurs (Rôles Aria, Noms Accessibles).
-                        c. **AUDIT VISUEL** : Prenez un screenshot (`take_screenshot`) et analysez-le avec `analyze_resource_image` pour confronter la vision IA avec les données techniques du DOM.
-                    - **AUTO-CORRECTION** : Appliquez les corrections sur le CODE TypeScript en privilégiant les `suggestedLocator` fournis par l'outil d'inspection (getByRole, getByPlaceholder).
+                        a. **RE-NAVIGATION** : Utilisez \`explore_page_with_actions\` pour atteindre exactement l'état où le test a échoué.
+                        b. **INSPECTION TECHNIQUE SÉMANTIQUE** : Appelez \`inspect_page\` sur l'URL actuelle pour obtenir les nouveaux locateurs (Rôles Aria, Noms Accessibles).
+                        c. **AUDIT VISUEL** : Prenez un screenshot (\`take_screenshot\`) et analysez-le avec \`analyze_resource_image\` pour confronter la vision IA avec les données techniques du DOM.
+                    - **AUTO-CORRECTION** : Appliquez les corrections sur le CODE TypeScript en privilégiant les \`suggestedLocator\` fournis par l'outil d'inspection (getByRole, getByPlaceholder).
                     - **RÉPÉTITION** : Répétez le cycle jusqu'à ce que 100% des scénarios passent.
                 
                 LIVRABLES :
