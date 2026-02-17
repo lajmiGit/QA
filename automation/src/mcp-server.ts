@@ -75,11 +75,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             {
                 name: "list_files",
-                description: "List files in a directory",
+                description: "List files in a directory (excludes node_modules, .git, etc.)",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        directory: { type: "string" }
+                        directory: { type: "string" },
+                        recursive: { type: "boolean", default: false }
                     },
                     required: ["directory"]
                 }
@@ -96,7 +97,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             {
                 name: "inspect_page",
-                description: "Inspect a page and return accessible elements",
+                description: "Inspect a page and return accessible elements (truncated to 40 elements)",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -130,7 +131,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             {
                 name: "explore_page_with_actions",
-                description: "Navigate to a URL and perform actions to reach a specific state, then return the DOM.",
+                description: "Navigate to a URL and perform actions to reach a specific state, then return the DOM (truncated to 40 elements).",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -189,24 +190,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         if (name === "list_files") {
-            const { directory } = args as { directory: string };
+            const { directory, recursive } = args as { directory: string, recursive?: boolean };
             const fullPath = path.resolve(process.cwd(), directory);
 
             if (!fs.existsSync(fullPath)) {
                 return { content: [{ type: "text", text: `Directory not found: ${directory}` }] };
             }
 
-            const files = fs.readdirSync(fullPath, { recursive: true }).map(f => {
-                const filePath = path.join(fullPath, f.toString());
-                const stats = fs.statSync(filePath);
-                return {
-                    name: f.toString(),
-                    mtime: stats.mtimeMs,
-                    size: stats.size
-                };
-            });
+            const EXCLUDED_DIRS = ['node_modules', '.git', '.features-gen', 'playwright-report', '.venv', 'venv', '__pycache__'];
+
+            const results: any[] = [];
+            const walk = (dir: string, currentDepth: number) => {
+                if (currentDepth > 3) return; // Limit depth to avoid explosion
+
+                const files = fs.readdirSync(dir);
+                for (const file of files) {
+                    if (EXCLUDED_DIRS.includes(file)) continue;
+
+                    const filePath = path.join(dir, file);
+                    const stats = fs.statSync(filePath);
+                    const relativePath = path.relative(fullPath, filePath);
+
+                    results.push({
+                        name: relativePath,
+                        mtime: stats.mtimeMs,
+                        size: stats.size,
+                        isDir: stats.isDirectory()
+                    });
+
+                    if (recursive && stats.isDirectory()) {
+                        walk(filePath, currentDepth + 1);
+                    }
+                }
+            };
+
+            walk(fullPath, 0);
+
+            // Limit total files returned to avoid context bloat
+            const truncated = results.slice(0, 100);
+            const message = results.length > 100
+                ? `Listed ${truncated.length} files (total ${results.length}, truncated to avoid explosion):\n` + JSON.stringify(truncated, null, 2)
+                : JSON.stringify(results, null, 2);
+
             return {
-                content: [{ type: "text", text: JSON.stringify(files, null, 2) }]
+                content: [{ type: "text", text: message }]
             };
         }
 
@@ -271,8 +298,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 });
             });
 
+            // Limit the number of elements returned to 40 to avoid token explosion
+            const truncatedStructure = structure.slice(0, 40);
+            const finalResult: any = structure.length > 40
+                ? {
+                    message: `Found ${structure.length} elements, showing first 40. Use more specific URLs or actions to filter.`,
+                    elements: truncatedStructure
+                }
+                : structure;
+
             return {
-                content: [{ type: "text", text: JSON.stringify(structure, null, 2) }]
+                content: [{ type: "text", text: JSON.stringify(finalResult, null, 2) }]
             };
         }
 
@@ -356,7 +392,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                         });
                 });
 
-                result = { structure, screenshotPath, logs };
+                // Limit structure elements to avoid context explosion
+                const truncatedStructure = structure.slice(0, 40);
+                result = {
+                    structure: structure.length > 40 ? truncatedStructure : structure,
+                    screenshotPath,
+                    logs
+                };
+
+                if (structure.length > 40) {
+                    result.message = `Found ${structure.length} elements, showing first 40.`;
+                }
 
             } finally {
                 await browser.close();

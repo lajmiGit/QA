@@ -36,21 +36,21 @@ class GeminiContextManager:
     def _create_cache_for_model(self, model_short_name, wiki_dir="wiki"):
         """
         Crée un cache spécifique pour un modèle donné.
+        Note: Le chargement du Wiki a été désactivé pour alléger le contexte (Lean Context).
         """
         model_full_name = f"models/{model_short_name}"
         display_name = f"{self.display_name_prefix}_{model_short_name}"
         
-        print(f"🚀 Initialisation du cache pour {model_full_name}...")
+        print(f"🚀 Initialisation du cache pour {model_full_name} (Mode Lean)...")
         
+        # Wiki désactivé
         contents = []
-        if os.path.exists(wiki_dir):
-            for file in os.listdir(wiki_dir):
-                if file.endswith(".md"):
-                    with open(os.path.join(wiki_dir, file), 'r', encoding='utf-8') as f:
-                        contents.append(f"DOCUMENT WIKI ({file}) :\n{f.read()}\n")
         
+        # Si on voulait remettre le Wiki, c'était ici.
+        # Pour l'instant on garde une liste vide pour initialiser un cache minimal.
+
         if not contents:
-            print(f"⚠️ Aucun Wiki trouvé pour {model_full_name}")
+            print(f"⚠️ Aucun contenu à cacher pour {model_short_name}. Création du cache annulée.")
             return None
 
         try:
@@ -59,8 +59,8 @@ class GeminiContextManager:
                 model=model_full_name,
                 display_name=display_name,
                 system_instruction=(
-                    "Tu es l'Expert Documentation du Labo QA IA. Tu possèdes tout le Wiki du projet. "
-                    "Utilise ces documents pour compléter les informations dynamiques qui te seront fournies."
+                    "Tu es l'Expert Technique du Labo QA IA. "
+                    "Tu utilises ton intelligence et les informations fournies dynamiquement pour répondre."
                 ),
                 contents=contents,
                 ttl=ttl_delta,

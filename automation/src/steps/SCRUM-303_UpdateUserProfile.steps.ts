@@ -31,7 +31,7 @@ When('I update the profile fields with the following details:', async ({ page },
   // Mapping Gherkin keys to Page Object keys
   const mappedData: Record<string, string> = {};
   for (const [key, value] of Object.entries(data)) {
-    mappedData[key] = value;
+    mappedData[key] = value as string;
   }
 
   // Fill the fields
@@ -54,13 +54,6 @@ Then('I should be redirected to the Confirmation Screen', async ({ page }) => {
 Then('I should see the title {string}', async ({ page }, title) => {
   const updateProfilePage = new UpdateProfilePage(page);
   await updateProfilePage.verifyTitle(title);
-});
-
-Then('I should see the success message {string}', async ({ page }, message) => {
-  const updateProfilePage = new UpdateProfilePage(page);
-  // The Gherkin message might differ slightly from actual text due to dynamic content or formatting
-  // The page object uses containText
-  await updateProfilePage.verifySuccessMessage(message);
 });
 
 When('I clear the {string} field', async ({ page }, fieldName) => {

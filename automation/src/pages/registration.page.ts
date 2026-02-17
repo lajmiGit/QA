@@ -1,7 +1,10 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 
 export class RegistrationPage {
     readonly page: Page;
+    readonly title: Locator;
+    
+    // Form fields
     readonly firstNameInput: Locator;
     readonly lastNameInput: Locator;
     readonly addressInput: Locator;
@@ -12,76 +15,89 @@ export class RegistrationPage {
     readonly ssnInput: Locator;
     readonly usernameInput: Locator;
     readonly passwordInput: Locator;
-    readonly confirmInput: Locator;
+    readonly confirmPasswordInput: Locator;
+    
+    // Actions
     readonly registerButton: Locator;
-    readonly pageTitle: Locator;
-    readonly successMessage: Locator;
-    readonly welcomeBanner: Locator;
-
+    
+    // Messages
+    readonly successTitle: Locator; // Souvent "Welcome user"
+    readonly successText: Locator; // "Your account was created..."
+    
     constructor(page: Page) {
         this.page = page;
-        this.firstNameInput = page.locator('id=customer.firstName');
-        this.lastNameInput = page.locator('id=customer.lastName');
-        this.addressInput = page.locator('id=customer.address.street');
-        this.cityInput = page.locator('id=customer.address.city');
-        this.stateInput = page.locator('id=customer.address.state');
-        this.zipCodeInput = page.locator('id=customer.address.zipCode');
-        this.phoneInput = page.locator('id=customer.phoneNumber');
-        this.ssnInput = page.locator('id=customer.ssn');
-        this.usernameInput = page.locator('id=customer.username');
-        this.passwordInput = page.locator('id=customer.password');
-        this.confirmInput = page.locator('id=repeatedPassword');
-        this.registerButton = page.locator('input[value="Register"]');
-        this.pageTitle = page.locator('h1.title');
-        this.successMessage = page.locator('#rightPanel p');
-        this.welcomeBanner = page.locator('#rightPanel h1.title');
+        this.title = page.locator('h1.title');
+        
+        // Sélecteurs basés sur l'exploration précédente
+        this.firstNameInput = page.locator('input[id="customer.firstName"]');
+        this.lastNameInput = page.locator('input[id="customer.lastName"]');
+        this.addressInput = page.locator('input[id="customer.address.street"]');
+        this.cityInput = page.locator('input[id="customer.address.city"]');
+        this.stateInput = page.locator('input[id="customer.address.state"]');
+        this.zipCodeInput = page.locator('input[id="customer.address.zipCode"]');
+        this.phoneInput = page.locator('input[id="customer.phoneNumber"]');
+        this.ssnInput = page.locator('input[id="customer.ssn"]');
+        this.usernameInput = page.locator('input[id="customer.username"]');
+        this.passwordInput = page.locator('input[id="customer.password"]');
+        this.confirmPasswordInput = page.locator('#repeatedPassword');
+        
+        this.registerButton = page.getByRole('button', { name: 'Register' });
+        
+        // Après inscription réussie
+        this.successTitle = page.locator('h1.title');
+        this.successText = page.locator('#rightPanel p');
     }
 
-    async navigateTo() {
+    async navigate() {
         await this.page.goto('https://parabank.parasoft.com/parabank/register.htm');
     }
 
-    async fillRegistrationForm(data: any) {
-        if (data.firstName !== undefined) await this.firstNameInput.fill(data.firstName);
-        if (data.lastName !== undefined) await this.lastNameInput.fill(data.lastName);
-        if (data.address !== undefined) await this.addressInput.fill(data.address);
-        if (data.city !== undefined) await this.cityInput.fill(data.city);
-        if (data.state !== undefined) await this.stateInput.fill(data.state);
-        if (data.zipCode !== undefined) await this.zipCodeInput.fill(data.zipCode);
-        if (data.phone !== undefined) await this.phoneInput.fill(data.phone);
-        if (data.ssn !== undefined) await this.ssnInput.fill(data.ssn);
-        if (data.username !== undefined) await this.usernameInput.fill(data.username);
-        if (data.password !== undefined) await this.passwordInput.fill(data.password);
-        if (data.confirm !== undefined) await this.confirmInput.fill(data.confirm);
+    async clickRegisterLink() {
+        await this.page.getByRole('link', { name: 'Register' }).click();
     }
 
-    async clickRegister() {
+    async verifyPageTitle(text: string) {
+        await expect(this.title).toHaveText(text);
+    }
+
+    async fillForm(data: Record<string, string>) {
+        if (data['First Name']) await this.firstNameInput.fill(data['First Name']);
+        if (data['Last Name']) await this.lastNameInput.fill(data['Last Name']);
+        if (data['Address']) await this.addressInput.fill(data['Address']);
+        if (data['City']) await this.cityInput.fill(data['City']);
+        if (data['State']) await this.stateInput.fill(data['State']);
+        if (data['Zip Code']) await this.zipCodeInput.fill(data['Zip Code']);
+        if (data['Phone']) await this.phoneInput.fill(data['Phone']);
+        if (data['SSN']) await this.ssnInput.fill(data['SSN']);
+        if (data['Username']) await this.usernameInput.fill(data['Username']);
+        if (data['Password']) await this.passwordInput.fill(data['Password']);
+        if (data['Confirm']) await this.confirmPasswordInput.fill(data['Confirm']);
+    }
+
+    async submit() {
         await this.registerButton.click();
-
     }
 
-    async getInlineErrorMessage(fieldName: string) {
-        // Find error message to the right of the field.
-        // In ParaBank, errors are usually in a span after the input
-        const fieldMap: { [key: string]: string } = {
-            'First Name': 'customer.firstName',
-            'Last Name': 'customer.lastName',
-            'Address': 'customer.address.street',
-            'City': 'customer.address.city',
-            'State': 'customer.address.state',
-            'Zip Code': 'customer.address.zipCode',
-            'SSN': 'customer.ssn',
-            'Username': 'customer.username',
-            'Password': 'customer.password',
-            'Confirm': 'repeatedPassword'
-        };
-        const id = fieldMap[fieldName] || fieldName;
-        await this.page.waitForTimeout(3000); // Délai de 3s demandé
-        return this.page.locator(`id=${id}.errors`).textContent();
+    async verifySuccess(message: string) {
+        await expect(this.successText).toContainText(message);
+    }
+
+    async verifyWelcome(message: string) {
+        await expect(this.successTitle).toHaveText(message);
+    }
+
+    async verifyError(message: string) {
+        // Les erreurs globales ou par champ
+        await expect(this.page.locator(`text=${message}`)).toBeVisible();
     }
     
-    async getGeneralErrorMessage() {
-         await this.page.waitForTimeout(3000); // Délai de 3s demandé
-         return this.page.locator('span.error').textContent();
+    async verifyInlineError(message: string) {
+        // Souvent <span id="customer.firstName.errors" class="error">
+        await expect(this.page.locator('.error', { hasText: message })).toBeVisible();
+    }
+
+    async verifyPasswordsReset() {
+        await expect(this.passwordInput).toBeEmpty();
+        await expect(this.confirmPasswordInput).toBeEmpty();
     }
 }

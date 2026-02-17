@@ -21,20 +21,25 @@ class LaboQaAgents:
         self.llm_pro = LLM(
             model=f"google/{MODEL_PRO}",
             api_key=os.getenv("GOOGLE_API_KEY"),
-            max_rpm=MAX_RPM_PRO
+            max_rpm=MAX_RPM_PRO,
+            max_retries=MAX_RETRIES,
+            timeout=TIMEOUT
         )
         
         # Configuration LLM FLASH (Exploration et Tâches simples)
         self.llm_flash = LLM(
             model=f"google/{MODEL_FLASH}",
             api_key=os.getenv("GOOGLE_API_KEY"),
-            max_rpm=MAX_RPM_FLASH
+            max_rpm=MAX_RPM_FLASH,
+            max_retries=MAX_RETRIES,
+            timeout=TIMEOUT
         )
         
         self.query_tool = QueryKnowledgeTool()
         self.update_tool = UpdateKnowledgeTool()
 
     def analyst_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Analyste QA (Requirement Specialist)',
             goal='Analyser la User Story, explorer les ressources visuelles et produire un inventaire des règles.',
@@ -46,10 +51,12 @@ class LaboQaAgents:
             verbose=True,
             allow_delegation=False,
             llm=self.llm_flash, # Passage en Flash pour économiser le quota Pro
-            tools=[self.query_tool, VisionResourceTool(), VideoResourceTool(), ListFilesTool(), HumanInputTool()]
+            tools=[self.query_tool, VisionResourceTool(), VideoResourceTool(), ListFilesTool(), HumanInputTool()],
+            step_callback=step_logger.log_step
         )
 
     def designer_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Designer de Tests (BDD Specialist)',
             goal='Concevoir des scénarios Gherkin utilisant des Scenario Outlines et des tables Examples pour les JDD.',
@@ -61,10 +68,12 @@ class LaboQaAgents:
             verbose=True,
             allow_delegation=False,
             llm=self.llm_pro, # Garde Pro pour la logique Gherkin fine
-            tools=[self.query_tool]
+            tools=[self.query_tool],
+            step_callback=step_logger.log_step
         )
 
     def requirement_interviewer_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Expert en Analyse de Besoins (Interview Lead)',
             goal='Valider et affiner les règles de gestion via un dialogue point par point.',
@@ -74,11 +83,13 @@ class LaboQaAgents:
             Vous vulgarisez la technique pour l'utilisateur.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm_flash, # Flash suffit pour le dialogue de validation
-            tools=[HumanInputTool(), self.query_tool, self.update_tool, VisionResourceTool(), VideoResourceTool()]
+            llm=self.llm_pro, # Flash suffit pour le dialogue de validation
+            tools=[HumanInputTool(), self.query_tool, self.update_tool, VisionResourceTool(), VideoResourceTool()],
+            step_callback=step_logger.log_step
         )
 
     def design_interviewer_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Validateur de Design & JDD (Scenario Lead)',
             goal='Valider les scénarios Gherkin et les jeux de données (Examples) point par point.',
@@ -91,10 +102,12 @@ class LaboQaAgents:
             verbose=True,
             allow_delegation=False,
             llm=self.llm_flash, # Flash suffit pour le dialogue de validation
-            tools=[HumanInputTool(), self.query_tool, self.update_tool, VisionResourceTool(), VideoResourceTool()]
+            tools=[HumanInputTool(), self.query_tool, self.update_tool, VisionResourceTool(), VideoResourceTool()],
+            step_callback=step_logger.log_step
         )
 
     def sdet_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Ingénieur SDET (Automation Agent)',
             goal='Transformer les scénarios Gherkin en code Playwright (TypeScript) robuste utilisant le pattern Page Object Model (POM).',
@@ -108,10 +121,12 @@ class LaboQaAgents:
             verbose=True,
             allow_delegation=False,
             llm=self.llm_pro, # Garde Pro pour la génération de code critique
-            tools=[WriteFileTool(), ReadFileTool(), RunPlaywrightTestTool(), ListFilesTool(), InspectPageTool(), TakeScreenshotTool(), GetConsoleLogsTool(), HumanInputTool(), ExplorePageTool(), VisionResourceTool(), VideoResourceTool()]
+            tools=[WriteFileTool(), ReadFileTool(), RunPlaywrightTestTool(), ListFilesTool(), InspectPageTool(), TakeScreenshotTool(), GetConsoleLogsTool(), HumanInputTool(), ExplorePageTool(), VisionResourceTool(), VideoResourceTool()],
+            step_callback=step_logger.log_step
         )
 
     def supervisor_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Superviseur (QA Lead)',
             goal='Assurer la qualité globale des livrables (analyse, scénarios, code) et valider la cohérence.',
@@ -119,10 +134,12 @@ class LaboQaAgents:
             Vous vérifiez que le code généré correspond bien aux scénarios Gherkin et que les scénarios couvrent bien les règles de gestion identifiées.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm_pro # Garde Pro pour la supervision haute fidélité
+            llm=self.llm_pro, # Garde Pro pour la supervision haute fidélité
+            step_callback=step_logger.log_step
         )
 
     def integration_agent(self):
+        from src.utils.logger import step_logger
         return Agent(
             role='Agent d\'Intégration (Jira/Xray Connector)',
             goal='Gérer toutes les interactions avec Jira et Xray.',
@@ -131,6 +148,7 @@ class LaboQaAgents:
             Vous assurez que la liaison entre les tickets et les tests est maintenue.""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm_flash, # Flash suffit pour le parsing Jira/Xray JSON
-            tools=[JiraIssueTool(), XrayImportTool()]
+            llm=self.llm_pro, # Flash suffit pour le parsing Jira/Xray JSON
+            tools=[XrayImportTool()],
+            step_callback=step_logger.log_step
         )

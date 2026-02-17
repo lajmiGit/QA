@@ -3,15 +3,6 @@ from textwrap import dedent
 from src.models import RuleInventory, GherkinDesign
 
 class LaboQaTasks:
-    def jira_fetch_task(self, agent, issue_key):
-        return Task(
-            description=dedent(f"""
-                Utiliser l'outil 'fetch_jira_issue' pour récupérer le contenu complet de l'issue Jira: {issue_key}.
-                Extraire le titre, la description et tous les détails pertinents.
-            """),
-            agent=agent,
-            expected_output="Le contenu brut de la User Story récupéré depuis Jira."
-        )
 
     def analysis_task(self, agent, user_story_context=None, direct_input=None):
         description = dedent("""
@@ -49,78 +40,51 @@ class LaboQaTasks:
             description=description,
             agent=agent,
             context=context,
-            output_pydantic=RuleInventory, # Nettoyage du contexte via structure JSON
-            expected_output="Un inventaire technique complet des règles (non validé)."
+            expected_output="Inventaire technique structuré (RuleInventory)",
+            output_pydantic=RuleInventory
         )
 
     def interview_analysis_task(self, agent, analysis_context):
         return Task(
             description=dedent("""
-                Mener une interview point par point pour valider l'analyse technique.
+                Mener une interview de validation via le **PROTOCOLE DE COLLECTE SÉQUENTIELLE SILENCIEUSE** :
                 
-                PROTOCOLE DE CHATBOT PERSISTANT (STRICT) :
-                1. OBLIGATION : Appelez `query_knowledge` pour récupérer 'validated_rules'.
-                2. POUR CHAQUE POINT de l'analyse :
-                   - VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil `ask_human` pour chaque point.
-                   - IL EST INTERDIT de poser la question dans votre réponse texte sans appeler l'outil.
-                3. VÉRIFICATION FINALE GLOBALE :
-                   - Une fois tous les points discutés, présentez une RÉCAPITULATION COMPLÈTE numérotée de tous les points validés.
-                   - Demandez EXPLICITEMENT l'autorisation finale via `ask_human` : "Confirmez-vous l'ensemble de ces points pour passage à la conception ? (Tapez 'GO' pour valider ou listez les points à revoir)".
-                   - TANT QUE vous n'avez pas un "GO" ou une validation globale claire, vous devez RESTER dans cette tâche.
-                4. CAPACITÉ VISUELLE & VIDÉO DE CLARIFICATION :
-                   - Si l'utilisateur mentionne une image, une vidéo ou si un point semble ambigu, utilisez `analyze_resource_image` ou `analyze_scenario_video`. Ne faites pas de redécouverte globale, soyez ciblé sur le doute exprimé.
-                5. Une fois le "GO" reçu, enregistrez les nouveautés via `update_knowledge`.
-                6. VOTRE RÉPONSE FINALE ne doit être que le résumé de l'accord final obtenu.
+                1. **VISION GLOBALE** : Affichez d'abord le tableau Markdown complet des règles.
+                2. **COLLECTE POINT PAR POINT** : Posez une question précise via `ask_human` pour chaque ID.
+                3. **SILENCE IA (STRICT)** : Interdiction de commenter entre les questions. Soyez sériel.
+                4. **CONSOLIDATION** : Une synthèse finale après clôture.
             """),
             agent=agent,
             context=[analysis_context],
-            expected_output="Analyse finale consolidée et mémorisée point par point."
+            expected_output="Analyse validée point par point sans interférences de l'IA."
         )
 
     def test_design_task(self, agent, interview_context):
         return Task(
             description=dedent(f"""
-                Concevoir les scénarios Gherkin modernes avec intégration formelle des JDD.
+                Concevoir les scénarios Gherkin (Scenario Outline).
                 
-                CONSIGNES STRICTES :
-                1. INTERDICTION d'utiliser des commentaires (#) pour les JDD.
-                2. Utilisez obligatoirement des 'Scenario Outline' avec une table 'Examples' pour chaque cas de test.
-                3. Proposez des colonnes claires dans les Examples (ex: | username | password | error_message |).
-                4. Rédigez en anglais.
-                
-                Produisez un brouillon Gherkin complet utilisant cette structure.
+                **CONVENTION DE SYNTAXE DYNAMIQUE (OBLIGATOIRE)** :
+                Utilisez les placeholders : `<unique>`, `<email>`, `<adult_dob>`, `<future_date>`.
+                Rédigez en anglais.
             """),
             agent=agent,
             context=[interview_context],
-            output_pydantic=GherkinDesign, # Nettoyage du contexte
-            expected_output="Brouillon Gherkin avec Scenario Outlines et tables Examples."
+            expected_output="Design Gherkin structuré (GherkinDesign)",
+            output_pydantic=GherkinDesign
         )
 
     def interview_design_task(self, agent, design_context):
         return Task(
             description=dedent("""
-                Mener l'interview de validation du Design et des JDD.
-                
-                PROTOCOLE APPRENANT (STRICT) :
-                1. OBLIGATION : Consultez `query_knowledge` pour les 'preferred_jdd'.
-                2. POUR CHAQUE SCÉNARIO :
-                   - Présentez le SCÉNARIO (les étapes Given/When/Then) à l'utilisateur via `ask_human`.
-                   - Attendez la validation du flux logique avant de parler des données.
-                3. POUR CHAQUE LIGNE DE DONNÉES (Examples) :
-                   - VOUS DEVEZ IMPÉRATIVEMENT appeler l'outil `ask_human` pour faire valider les valeurs.
-                4. VISION & VIDÉO POUR VALIDATION :
-                   - Si l'utilisateur conteste un design en se basant sur une capture ou un enregistrement, utilisez `analyze_resource_image` ou `analyze_scenario_video` pour confronter le design avec la réalité.
-                5. Mémorisez les nouveaux JDD via `update_knowledge` APRÈS avoir reçu le 'GO'.
-                6. VÉRIFICATION FINALE GLOBALE (OBLIGATOIRE - NE PAS SÉQUENCER) :
-                   - Après tous les points, affichez le FICHIER GHERKIN COMPLET généré.
-                    - Demandez EXPLICITEMENT l'autorisation via `ask_human` : "Validez-vous ce design final (Scénarios + JDD) ? Répondez 'GO' pour envoyer ou indiquez les modifications".
-                    - **BOUCLE DE SÉCURITÉ** : Si l'utilisateur demande un résumé, émet une critique ou demande des changements, vous devez REPRENDRE l'échange et RE-DEMANDER le 'GO' final via `ask_human`.
-                   - IL EST INTERDIT de donner votre 'Final Answer' tant que la réponse à `ask_human` n'est pas strictement 'GO' ou une validation sans équivoque.
-                7. CLÔTURE : Votre 'Final Answer' ne peut être donné QUE si l'autorisation 'GO' a été obtenue.
+                Valider le Design Gherkin via le **PROTOCOLE DE COLLECTE SÉQUENTIELLE SILENCIEUSE** :
+                1. Affichez le Gherkin complet.
+                2. Posez des questions séquentielles sur la logique et les JDD.
+                3. Attendez le 'GO'.
             """),
             agent=agent,
             context=[design_context],
-            expected_output="Contenu final du fichier .feature et mise à jour de la mémoire JDD."
+            expected_output="Design Gherkin validé efficacement point par point."
         )
 
     def code_generation_task(self, agent, design_context, xray_context, issue_key=None, base_url=None):
@@ -136,13 +100,22 @@ class LaboQaTasks:
             description=dedent(f"""
                 Tu es un ingénieur autonome. Ta mission est d'implémenter et de VALIDER les tests Playwright pour la User Story.
                 
-                SOURCE :
-                Utilise les scénarios Gherkin fournis dans le contexte (design_context) comme source de vérité.
+                SOURCE DE VÉRITÉ STRICTE :
+                Tu ne reçois PAS tout l'historique de conversation (vidéos, analyses, etc.).
+                Tu reçois uniquement un objet `GherkinDesign` contenant :
+                1. Le contenu Gherkin validé.
+                2. Les exemples de données de test.
+                
+                **MODE TASK-ONLY** :
+                - Ne cherche pas à "deviner" le contexte visuel passé. Si tu as besoin d'infos sur un sélecteur ou une règle, utilise `query_knowledge` pour interroger le "Cerveau du Projet".
+                - Si tu as besoin de voir la page actuelle, utilise `inspect_page` ou `explore_page_with_actions`.
+                
                 **RÈGLE D'IMMUTABILITÉ** : Il est strictement INTERDIT de modifier les scénarios Gherkin pour faire passer un test. Si un test échoue, vous devez corriger le CODE (Page Objects ou Steps) pour qu'il corresponde aux scénarios.
                 
                 ACTIONS ATTENDUES :
                 1.  **AUDIT DU CODE EXISTANT (OBLIGATOIRE)** :
                     - Utilisez `list_files` sur `src/pages/`, `steps/` et `features/`.
+                    - **RÈGLE DE SÉCURITÉ TOKENS** : Ne JAMAIS appeler `list_files` sur la racine `.` ou `/` avec l'option récursive. Si vous devez explorer la structure, faites-le dossier par dossier.
                     - Si des fichiers existent déjà pour cette fonctionnalité (ex: `login.page.ts`), utilisez `read_file` pour les analyser.
                     - **RÈGLE ANTI-DUPLICATION** : Si un fichier existe, vous devez le METTRE À JOUR avec `write_file` plutôt que d'en créer un nouveau (exemple: ne créez pas `login_v2.page.ts`).
                 

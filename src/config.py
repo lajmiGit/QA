@@ -3,7 +3,7 @@ import os
 # --- Configuration des Modèles ---
 
 # Le "Cerveau" : Raisonnement complexe, Agents et Synthèse
-MODEL_PRO = "gemini-3-flash-preview"
+MODEL_PRO = "gemini-3-pro-preview"
 
 # Le "Capteur" : Vision, Vidéo et Lectures rapides
 MODEL_FLASH = "gemini-3-flash-preview"
@@ -17,4 +17,4 @@ MAX_RPM_FLASH = 1000
 
 # --- Paramètres de Résilience ---
 MAX_RETRIES = 10
-TIMEOUT = 120
+TIMEOUT = 600
